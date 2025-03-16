@@ -1,26 +1,20 @@
 require('dotenv').config();
 const app = require('./src/app');
-const { pool } = require('./src/config/database');
+const { connectWithRetry, pool } = require('./src/config/database'); // Importar connectWithRetry y pool
 
 const PORT = process.env.PORT || 3000;
 
 // Función para intentar conectar a la base de datos
-const connectDB = async (retries = 5, delay = 5000) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      await pool.query('SELECT NOW()');
-      console.log('Conexión con la base de datos establecida con éxito.');
-      return true;
-    } catch (error) {
-      console.error(`Intento ${i + 1} de ${retries} fallido:`, error.message);
-      if (i < retries - 1) {
-        console.log(`Reintentando en ${delay/1000} segundos...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
+async function connectDB() {
+  try {
+    await connectWithRetry(); // Usar connectWithRetry para manejar reconexiones
+    console.log('Conexión exitosa a SQL Server');
+    return true;
+  } catch (err) {
+    console.error('Error al conectar a SQL Server:', err);
+    return false;
   }
-  return false;
-};
+}
 
 // Función para iniciar el servidor
 const startServer = () => {
@@ -48,12 +42,12 @@ const startServer = () => {
 // Manejo de señales de terminación
 process.on('SIGTERM', async () => {
   console.log('Señal SIGTERM recibida. Cerrando servidor...');
-  await pool.end();
+  await pool.close(); // Cerrar el pool de conexiones
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('Señal SIGINT recibida. Cerrando servidor...');
-  await pool.end();
+  await pool.close(); // Cerrar el pool de conexiones
   process.exit(0);
 });

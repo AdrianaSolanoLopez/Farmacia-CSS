@@ -5,7 +5,7 @@ const apiRoutes = require('./routes/api');
 const app = express();
 
 // CORS configuration
-const allowedOrigins = ['http://localhost:3000', 'https://farmacia-css.vercel.app'];
+const allowedOrigins = [process.env.ALLOWED_ORIGINS];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -15,11 +15,10 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, 
+  credentials: true,
 };
 
 app.use(cors(corsOptions));
-
 app.use(express.json());
 
 // API routes
@@ -28,7 +27,10 @@ app.use('/api', apiRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).send('Something broke!');
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: err.message,
+  });
 });
 
 module.exports = app;
