@@ -61,7 +61,7 @@
 
 const { Sequelize } = require('sequelize');
 
-const sequelize = new Sequelize('nombre_de_tu_bd', 'usuario', 'contraseña', {
+const sequelize = new Sequelize('FarmaciaPOS', 'sa', '1234567890', {
     host: 'localhost',
     dialect: 'mssql',
     dialectOptions: {
