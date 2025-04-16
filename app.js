@@ -25,9 +25,9 @@ app.use(errorHandler);
 
 export default app;
 
-// productos
+// productos --------------------
 const express = require('express');
-//const app = express(); (sale error)
+//const app = express(); (sale error porque esta duplicado)
 
 const productoRoutes = require('./routes/productoRoutes');
 
