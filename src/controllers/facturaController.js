@@ -100,3 +100,73 @@ exports.getFacturaPorId = async (req, res) => {
 //Sugerencias adicionales: El cálculo de total puede hacerse en el backend por seguridad, multiplicando precio x cantidad.
 //Se puede agregar una columna anulada para permitir anulación lógica.
 //Este controlador se conecta directamente con Clientes, Productos, Lotes y Inventario.
+
+
+// controllers/facturaController.js
+const Factura = require('../models/Factura');
+const DetalleFactura = require('../models/DetalleFactura');
+const Producto = require('../models/Producto');
+const Lote = require('../models/Lote');
+
+const facturaController = {
+  async crearFactura(req, res) {
+    try {
+      const { cliente_id, productos, medio_pago } = req.body;
+
+      if (!productos || productos.length === 0) {
+        return res.status(400).json({ mensaje: 'Debe incluir productos en la factura.' });
+      }
+
+      const nuevaFactura = await Factura.create({
+        cliente_id,
+        fecha: new Date(),
+        medio_pago
+      });
+
+      for (const item of productos) {
+        const { producto_id, cantidad } = item;
+
+        const producto = await Producto.findByPk(producto_id);
+        if (!producto) continue;
+
+        // Priorizar lotes por fecha de vencimiento
+        const lotes = await Lote.findAll({
+          where: {
+            producto_id,
+            cantidad_disponible: { [Op.gt]: 0 }
+          },
+          order: [['fecha_caducidad', 'ASC']]
+        });
+
+        let cantidadRestante = cantidad;
+
+        for (const lote of lotes) {
+          if (cantidadRestante <= 0) break;
+
+          const cantidadUsar = Math.min(cantidadRestante, lote.cantidad_disponible);
+
+          await lote.update({
+            cantidad_disponible: lote.cantidad_disponible - cantidadUsar
+          });
+
+          await DetalleFactura.create({
+            factura_id: nuevaFactura.id,
+            producto_id,
+            lote_id: lote.id,
+            cantidad: cantidadUsar,
+            precio_unitario: producto.costo_venta
+          });
+
+          cantidadRestante -= cantidadUsar;
+        }
+      }
+
+      res.status(201).json({ mensaje: 'Factura creada exitosamente.', factura: nuevaFactura });
+    } catch (error) {
+      console.error('Error al crear factura:', error);
+      res.status(500).json({ mensaje: 'Error al crear la factura.' });
+    }
+  }
+};
+
+module.exports = facturaController;
