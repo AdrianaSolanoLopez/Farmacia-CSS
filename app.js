@@ -24,3 +24,14 @@ app.use('/api/actas', actasRoutes);
 app.use(errorHandler);
 
 export default app;
+
+// productos
+const express = require('express');
+//const app = express(); (sale error)
+
+const productoRoutes = require('./routes/productoRoutes');
+
+app.use(express.json());
+app.use('/api/productos', productoRoutes);
+
+module.exports = app;
