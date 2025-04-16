@@ -9,11 +9,21 @@
 const db = require('../db');
 const moment = require('moment');
 
-// Registrar una devolución
 exports.registrarDevolucion = async (req, res) => {
   const { venta_id, producto_id, lote_id, cantidad, motivo, tipo } = req.body;
 
+  if (!venta_id || !producto_id || !lote_id || !cantidad || !motivo || !tipo) {
+    return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
+  }
+
   try {
+    // Validar existencia del lote y stock actual
+    const loteResult = await db.query(`SELECT cantidad_disponible FROM Lotes WHERE id = @lote_id`, { lote_id });
+
+    if (loteResult.recordset.length === 0) {
+      return res.status(404).json({ error: 'Lote no encontrado.' });
+    }
+
     // Insertar devolución
     const result = await db.query(`
       INSERT INTO Devoluciones (venta_id, producto_id, lote_id, cantidad, motivo, tipo, fecha)
@@ -26,12 +36,12 @@ exports.registrarDevolucion = async (req, res) => {
       cantidad,
       motivo,
       tipo,
-      fecha: moment().format('YYYY-MM-DD HH:mm:ss')
+      fecha: moment.utc().format('YYYY-MM-DD HH:mm:ss')
     });
 
     const devolucion_id = result.recordset[0].id;
 
-    // Sumar al lote si se acepta la devolución (por defecto todas se aceptan)
+    // Actualizar stock del lote
     await db.query(`
       UPDATE Lotes
       SET cantidad_disponible = cantidad_disponible + @cantidad
@@ -41,17 +51,25 @@ exports.registrarDevolucion = async (req, res) => {
       lote_id
     });
 
-    res.json({ message: 'Devolución registrada con éxito.', devolucion_id });
+    res.json({ message: '✅ Devolución registrada con éxito.', devolucion_id });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error al registrar devolución:', error);
+    res.status(500).json({ error: 'Error interno del servidor al registrar devolución.' });
   }
 };
 
-// Ver historial de devoluciones
 exports.getHistorialDevoluciones = async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT d.id, d.fecha, p.nombre AS producto, d.cantidad, d.motivo, d.tipo, l.numero_lote, c.nombre AS cliente
+      SELECT 
+        d.id, 
+        d.fecha, 
+        p.nombre AS producto, 
+        d.cantidad, 
+        d.motivo, 
+        d.tipo, 
+        l.numero_lote, 
+        c.nombre AS cliente
       FROM Devoluciones d
       LEFT JOIN Productos p ON d.producto_id = p.id
       LEFT JOIN Lotes l ON d.lote_id = l.id
@@ -62,9 +80,11 @@ exports.getHistorialDevoluciones = async (req, res) => {
 
     res.json(result.recordset);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error al obtener historial de devoluciones:', error);
+    res.status(500).json({ error: 'Error interno del servidor al obtener historial de devoluciones.' });
   }
 };
+
 
 //Ejemplos de uso de campos:
 // Campo	Uso

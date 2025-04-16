@@ -9,38 +9,31 @@
 const db = require('../db');
 const moment = require('moment');
 
-// Registrar una venta
+// Registrar una venta con lógica FEFO y usuario
 exports.registrarVenta = async (req, res) => {
-  const { cliente_id, productos, metodo_pago } = req.body;
+  const { cliente_id, usuario_id, productos, metodo_pago } = req.body;
 
   try {
     let total = 0;
 
-    // Calcular total de la venta
     productos.forEach(p => {
       total += p.precio_venta * p.cantidad;
     });
 
-    // Insertar venta
+    const fecha = moment().format('YYYY-MM-DD HH:mm:ss');
+
     const ventaResult = await db.query(`
-      INSERT INTO Ventas (cliente_id, fecha, total, metodo_pago)
+      INSERT INTO Ventas (cliente_id, usuario_id, fecha, total, metodo_pago)
       OUTPUT INSERTED.id
-      VALUES (@cliente_id, @fecha, @total, @metodo_pago)
-    `, {
-      cliente_id,
-      fecha: moment().format('YYYY-MM-DD HH:mm:ss'),
-      total,
-      metodo_pago
-    });
+      VALUES (@cliente_id, @usuario_id, @fecha, @total, @metodo_pago)
+    `, { cliente_id, usuario_id, fecha, total, metodo_pago });
 
     const venta_id = ventaResult.recordset[0].id;
 
-    // Procesar productos vendidos
     for (const producto of productos) {
       const { producto_id, cantidad, precio_venta } = producto;
       let cantidadRestante = cantidad;
 
-      // Buscar lotes por orden de vencimiento (FEFO)
       const lotes = await db.query(`
         SELECT id, cantidad_disponible
         FROM Lotes
@@ -53,17 +46,12 @@ exports.registrarVenta = async (req, res) => {
 
         const cantidadLote = Math.min(lote.cantidad_disponible, cantidadRestante);
 
-        // Descontar del lote
         await db.query(`
           UPDATE Lotes
           SET cantidad_disponible = cantidad_disponible - @cantidad
           WHERE id = @lote_id
-        `, {
-          cantidad: cantidadLote,
-          lote_id: lote.id
-        });
+        `, { cantidad: cantidadLote, lote_id: lote.id });
 
-        // Insertar en detalle de venta
         await db.query(`
           INSERT INTO DetalleVenta (venta_id, producto_id, lote_id, cantidad, precio_unitario)
           VALUES (@venta_id, @producto_id, @lote_id, @cantidad, @precio_unitario)
@@ -79,60 +67,67 @@ exports.registrarVenta = async (req, res) => {
       }
     }
 
-    res.json({ message: 'Venta registrada correctamente.', venta_id });
+    res.json({ mensaje: 'Venta registrada exitosamente', venta_id });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ error: 'Error al registrar la venta' });
   }
 };
 
-// Ver detalles de una venta
+// Obtener historial completo de ventas
+exports.getHistorialVentas = async (req, res) => {
+  try {
+    const resultado = await db.query(`
+      SELECT v.id, v.fecha, v.total, v.metodo_pago, c.nombre AS cliente, u.nombre AS usuario
+      FROM Ventas v
+      LEFT JOIN Clientes c ON v.cliente_id = c.id
+      LEFT JOIN Usuarios u ON v.usuario_id = u.id
+      ORDER BY v.fecha DESC
+    `);
+
+    res.json(resultado.recordset);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener el historial de ventas' });
+  }
+};
+
+// Obtener detalle de una venta
 exports.getDetalleVenta = async (req, res) => {
   const { venta_id } = req.params;
 
   try {
     const venta = await db.query(`
-      SELECT v.id, v.fecha, v.total, v.metodo_pago, c.nombre AS cliente
+      SELECT v.id, v.fecha, v.total, v.metodo_pago, c.nombre AS cliente, u.nombre AS usuario
       FROM Ventas v
       LEFT JOIN Clientes c ON v.cliente_id = c.id
+      LEFT JOIN Usuarios u ON v.usuario_id = u.id
       WHERE v.id = @venta_id
     `, { venta_id });
 
-    const productos = await db.query(`
-      SELECT p.nombre, dv.cantidad, dv.precio_unitario, l.numero_lote
+    if (venta.recordset.length === 0) {
+      return res.status(404).json({ mensaje: 'Venta no encontrada' });
+    }
+
+    const detalles = await db.query(`
+      SELECT dv.cantidad, dv.precio_unitario, p.nombre AS producto, l.numero_lote, l.fecha_vencimiento
       FROM DetalleVenta dv
       JOIN Productos p ON dv.producto_id = p.id
       JOIN Lotes l ON dv.lote_id = l.id
       WHERE dv.venta_id = @venta_id
     `, { venta_id });
 
-    res.json({ venta: venta.recordset[0], productos: productos.recordset });
+    res.json({ venta: venta.recordset[0], detalles: detalles.recordset });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error al obtener la venta' });
   }
 };
 
-// Ver historial de ventas
-exports.getHistorialVentas = async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT v.id, v.fecha, v.total, c.nombre AS cliente
-      FROM Ventas v
-      LEFT JOIN Clientes c ON v.cliente_id = c.id
-      ORDER BY v.fecha DESC
-    `);
-
-    res.json(result.recordset);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Ver ventas por fecha
+// Obtener ventas por fecha
 exports.getVentasPorFecha = async (req, res) => {
   const { desde, hasta } = req.query;
 
   try {
-    const result = await db.query(`
+    const resultado = await db.query(`
       SELECT v.id, v.fecha, v.total, c.nombre AS cliente
       FROM Ventas v
       LEFT JOIN Clientes c ON v.cliente_id = c.id
@@ -143,10 +138,35 @@ exports.getVentasPorFecha = async (req, res) => {
       hasta: moment(hasta).endOf('day').format('YYYY-MM-DD HH:mm:ss')
     });
 
-    res.json(result.recordset);
+    res.json(resultado.recordset);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: 'Error al obtener las ventas por fecha' });
   }
 };
+
+// Eliminar venta y revertir stock
+exports.eliminarVenta = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const detalles = await db.query('SELECT * FROM DetalleVenta WHERE venta_id = @id', { id });
+
+    for (const item of detalles.recordset) {
+      await db.query(`
+        UPDATE Lotes
+        SET cantidad_disponible = cantidad_disponible + @cantidad
+        WHERE id = @lote_id
+      `, { cantidad: item.cantidad, lote_id: item.lote_id });
+    }
+
+    await db.query('DELETE FROM DetalleVenta WHERE venta_id = @id', { id });
+    await db.query('DELETE FROM Ventas WHERE id = @id', { id });
+
+    res.json({ mensaje: 'Venta eliminada y stock revertido correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar la venta' });
+  }
+};
+
 
 //Con esto se tiene el flujo completo para manejar ventas, desde el registro hasta el desglose detallado.

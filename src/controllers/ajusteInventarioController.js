@@ -10,6 +10,23 @@ exports.crearAjuste = async (req, res) => {
   const { producto_id, lote_id, cantidad, tipo_ajuste, motivo, usuario_id } = req.body;
 
   try {
+    if (!['positivo', 'negativo'].includes(tipo_ajuste)) {
+      return res.status(400).json({ error: 'Tipo de ajuste inválido. Debe ser "positivo" o "negativo".' });
+    }
+
+    // Validar que el lote existe
+    const loteResult = await db.query(`SELECT cantidad_disponible FROM Lotes WHERE id = @lote_id`, { lote_id });
+
+    if (loteResult.recordset.length === 0) {
+      return res.status(404).json({ error: 'Lote no encontrado.' });
+    }
+
+    const disponible = loteResult.recordset[0].cantidad_disponible;
+
+    if (tipo_ajuste === 'negativo' && cantidad > disponible) {
+      return res.status(400).json({ error: `Cantidad insuficiente en el lote. Disponible: ${disponible}` });
+    }
+
     // Insertar el ajuste en la tabla de ajustes
     await db.query(`
       INSERT INTO AjustesInventario (producto_id, lote_id, cantidad, tipo_ajuste, motivo, fecha, usuario_id)
@@ -18,7 +35,6 @@ exports.crearAjuste = async (req, res) => {
 
     // Actualizar la cantidad en el lote
     const operador = tipo_ajuste === 'positivo' ? '+' : '-';
-
     await db.query(`
       UPDATE Lotes
       SET cantidad_disponible = cantidad_disponible ${operador} @cantidad
@@ -26,8 +42,10 @@ exports.crearAjuste = async (req, res) => {
     `, { cantidad });
 
     res.status(201).json({ message: 'Ajuste registrado correctamente' });
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al crear ajuste de inventario:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
 
@@ -44,7 +62,8 @@ exports.getAjustes = async (req, res) => {
 
     res.json(result.recordset);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al obtener ajustes:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
 
@@ -54,16 +73,18 @@ exports.getAjustesPorProducto = async (req, res) => {
 
   try {
     const result = await db.query(`
-      SELECT A.*, L.numero_lote
+      SELECT A.*, P.nombre AS producto, L.numero_lote
       FROM AjustesInventario A
       JOIN Lotes L ON A.lote_id = L.id
+      JOIN Productos P ON A.producto_id = P.id
       WHERE A.producto_id = @producto_id
       ORDER BY A.fecha DESC
     `, { producto_id });
 
     res.json(result.recordset);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al obtener ajustes por producto:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
 

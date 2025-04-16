@@ -4,6 +4,8 @@
 //Crear un lote para un producto, Obtener todos los lotes de un producto
 //Verificar productos con lotes próximos a vencer.
 
+// productoControler
+
 const db = require('../db'); // o tu conexión pool a SQL Server
 const moment = require('moment');
 

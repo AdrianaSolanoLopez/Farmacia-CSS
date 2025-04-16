@@ -5,9 +5,13 @@
 
 const db = require('../db');
 
-// Productos con lotes próximos a vencer
+// Lotes próximos a vencer
 exports.getLotesPorVencer = async (req, res) => {
-  const { dias_alerta } = req.body; // Ej: 30 días
+  const dias_alerta = parseInt(req.query.dias_alerta || 30); // Valor por defecto: 30 días
+
+  if (isNaN(dias_alerta) || dias_alerta < 1) {
+    return res.status(400).json({ error: 'El parámetro "dias_alerta" debe ser un número entero mayor a 0.' });
+  }
 
   try {
     const resultado = await db.query(`
@@ -27,11 +31,12 @@ exports.getLotesPorVencer = async (req, res) => {
 
     res.json(resultado.recordset);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al obtener lotes por vencer:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
 
-// Productos con lotes vencidos
+// Lotes ya vencidos
 exports.getLotesVencidos = async (req, res) => {
   try {
     const resultado = await db.query(`
@@ -51,9 +56,11 @@ exports.getLotesVencidos = async (req, res) => {
 
     res.json(resultado.recordset);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error al obtener lotes vencidos:', error);
+    res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
+
 
 //Recomendaciones:Puedes dejar el valor de dias_alerta configurable desde el frontend (por defecto 30).
 //Estas alertas pueden mostrarse automáticamente en el dashboard del sistema.
