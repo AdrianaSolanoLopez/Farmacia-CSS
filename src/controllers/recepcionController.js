@@ -1,6 +1,6 @@
 import sql from 'mssql';
-import { executeStoredProcedure } from '../config/db.js';
-import { AppError } from '../middlewares/errorHandler.js';
+import { executeStoredProcedure } from '../../config/db.js';
+import { AppError } from '../../middlewares/errorHandler.js';
 
 
 // Buscar un producto por nombre o código de barras
