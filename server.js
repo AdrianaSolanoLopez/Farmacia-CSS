@@ -1,6 +1,6 @@
 import app from './app.js';
 import dotenv from 'dotenv';
-import pool from './src/config/db.js';
+import './src/config/db.js'; // Solo importa, no necesitas volver a conectar aquí
 
 dotenv.config();
 
@@ -10,12 +10,6 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-(async () => {
-  try {
-    await pool.connect();
-    console.log('Connected to SQL Server successfully.');
-  } catch (error) {
-    console.error('Failed to connect to SQL Server:', error.message);
-    process.exit(1);
-  }
-})();
+const poolConnect = pool.connect().then(() => {
+  console.log('Connected to SQL Server successfully.');
+});
