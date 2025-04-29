@@ -1,34 +1,75 @@
-//AutenticacionController (para gestión de usuarios y autenticación)
-//Este controlador se encargaría de autenticar a los usuarios (por ejemplo, mediante JWT).
+import sql from 'mssql';
+import pool from '../config/db.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
-const db = require('../config/db');
-
-const pagoController = {
-  // Registrar pago de una venta
-  registrarPago: async (req, res) => {
-    const { venta_id, monto_pagado, tipo_pago } = req.body;
+const AutenticacionController = {
+  register: async (req, res) => {
+    const { nombre, correo, contraseña, rol } = req.body;
 
     try {
-      await db.query('INSERT INTO Pagos (venta_id, monto_pagado, tipo_pago) VALUES (@venta_id, @monto_pagado, @tipo_pago)', 
-        { venta_id, monto_pagado, tipo_pago });
+      // Verificar si el correo ya está registrado
+      const correoExistente = await pool.request()
+        .input('correo', sql.NVarChar, correo)
+        .query('SELECT * FROM Usuarios WHERE correo = @correo');
 
-      res.status(201).json({ mensaje: 'Pago registrado con éxito' });
+      if (correoExistente.recordset.length > 0) {
+        return res.status(400).json({ message: 'El correo ya está registrado' });
+      }
+
+      // Hash de la contraseña
+      const hashedPassword = await bcrypt.hash(contraseña, 10);
+
+      // Insertar el nuevo usuario en la base de datos
+      await pool.request()
+        .input('nombre', sql.NVarChar, nombre)
+        .input('correo', sql.NVarChar, correo)
+        .input('contraseña', sql.NVarChar, hashedPassword)
+        .input('rol', sql.NVarChar, rol)
+        .query('INSERT INTO Usuarios (nombre, correo, contraseña, rol) VALUES (@nombre, @correo, @contraseña, @rol)');
+
+      res.status(201).json({ message: 'Usuario registrado con éxito' });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ message: 'Error al registrar el usuario' });
     }
   },
 
-  // Consultar pagos realizados en una venta
-  obtenerPagosVenta: async (req, res) => {
-    const { venta_id } = req.params;
+  login: async (req, res) => {
+    const { correo, contraseña } = req.body;
 
     try {
-      const pagos = await db.query('SELECT * FROM Pagos WHERE venta_id = @venta_id', { venta_id });
-      res.json(pagos.recordset);
+      // Buscar el usuario en la base de datos
+      const usuario = await pool.request()
+        .input('correo', sql.NVarChar, correo)
+        .query('SELECT * FROM Usuarios WHERE correo = @correo');
+
+      if (usuario.recordset.length === 0) {
+        return res.status(404).json({ message: 'Correo o contraseña incorrectos' });
+      }
+
+      const user = usuario.recordset[0];
+
+      // Comparar la contraseña ingresada con la contraseña hasheada
+      const contraseñaValida = await bcrypt.compare(contraseña, user.contraseña);
+
+      if (!contraseñaValida) {
+        return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
+      }
+
+      // Crear un token JWT
+      const token = jwt.sign(
+        { usuarioId: user.usuario_id, rol: user.rol },
+        process.env.JWT_SECRET || 'secret',
+        { expiresIn: '1h' }
+      );
+
+      res.json({ message: 'Inicio de sesión exitoso', token });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      console.error(error);
+      res.status(500).json({ message: 'Error al iniciar sesión' });
     }
-  }
+  },
 };
 
-module.exports = pagoController;
+export default AutenticacionController;
