@@ -3,7 +3,7 @@
 //Se logra Listar productos con lotes que vencen en los próximos X días.
 //Listar productos que ya están vencidos. Mostrar cantidad disponible por lote próximo a vencer o vencido.
 
-const db = require('../db');
+const db = require('../config/db');
 
 // Lotes próximos a vencer
 exports.getLotesPorVencer = async (req, res) => {

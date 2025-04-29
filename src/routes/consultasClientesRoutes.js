@@ -1,8 +1,7 @@
-//17. Rutas de Consultas de Clientes (consultasClientesRoutes.js)
-
-const express = require('express');
+// src/routes/consultasClientesRoutes.js
+import express from 'express';
 const router = express.Router();
-const consultasClientesController = require('../controllers/consultasClientesController');
+import * as consultasClientesController from '../controllers/consultasClientesController.js';
 
 // Consulta de ventas por cliente
 router.get('/ventas/:clienteId', consultasClientesController.obtenerVentasPorCliente);
@@ -10,4 +9,4 @@ router.get('/ventas/:clienteId', consultasClientesController.obtenerVentasPorCli
 // Consulta de devoluciones por cliente
 router.get('/devoluciones/:clienteId', consultasClientesController.obtenerDevolucionesPorCliente);
 
-module.exports = router;
+export default router;

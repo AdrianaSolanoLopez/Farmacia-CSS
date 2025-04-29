@@ -1,10 +1,9 @@
-//15. Rutas de Historial de Cambios (historialCambiosRoutes.js)
-
-const express = require('express');
+// src/routes/historialCambiosRoutes.js
+import express from 'express';
 const router = express.Router();
-const historialCambiosController = require('../controllers/historialCambiosController');
+import * as historialCambiosController from '../controllers/historialCambiosController.js';
 
 router.get('/', historialCambiosController.obtenerHistorial);
 router.post('/', historialCambiosController.registrarCambio);
 
-module.exports = router;
+export default router;

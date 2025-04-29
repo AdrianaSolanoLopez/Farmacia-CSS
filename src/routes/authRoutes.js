@@ -1,8 +1,7 @@
-// 1. Rutas de Autenticación (authRoutes.js)
-
-const express = require('express');
+// src/routes/authRoutes.js
+import express from 'express';
 const router = express.Router();
-const authController = require('../controllers/AutenticacionController');
+import * as authController from '../controllers/AutenticacionController.js';
 
 // Login
 router.post('/login', authController.login);
@@ -10,5 +9,4 @@ router.post('/login', authController.login);
 // Registrar usuario (opcional, si se maneja desde backend)
 router.post('/register', authController.register);
 
-module.exports = router;
-
+export default router;

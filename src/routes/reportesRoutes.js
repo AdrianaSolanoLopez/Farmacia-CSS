@@ -1,10 +1,9 @@
-//13. Rutas de Reportes Generales (reportesRoutes.js)
-
-const express = require('express');
+// src/routes/reportesRoutes.js
+import express from 'express';
 const router = express.Router();
-const reportesController = require('../controllers/reportesController');
+import * as reportesController from '../controllers/reportesController.js';
 
 // Reporte general de ventas por fechas
 router.get('/ventas-por-fecha', reportesController.ventasPorFecha);
 
-module.exports = router;
+export default router;

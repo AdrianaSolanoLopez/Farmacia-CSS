@@ -6,7 +6,7 @@
 //Se identifica de qué venta y lote proviene el producto (si aplica).
 //Se suma nuevamente al stock del lote si es aceptada. Se lleva registro del motivo y estado.
 
-const db = require('../db');
+const db = require('../config/db');
 const moment = require('moment');
 
 exports.registrarDevolucion = async (req, res) => {

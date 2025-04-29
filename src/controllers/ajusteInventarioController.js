@@ -3,7 +3,7 @@
 //Este controlador Registrar un ajuste (positivo o negativo) de inventario
 //Asociar el ajuste a un lote, producto y motivo, Ver el historial de ajustes realizados
 
-const db = require('../db');
+const db = require('../config/db');
 
 // Crear un ajuste de inventario
 exports.crearAjuste = async (req, res) => {

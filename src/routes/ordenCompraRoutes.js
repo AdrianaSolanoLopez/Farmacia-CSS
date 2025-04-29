@@ -1,13 +1,12 @@
-//7. Rutas de Órdenes de Compra (ordenCompraRoutes.js)
-
-const express = require('express');
+// src/routes/ordenCompraRoutes.js
+import express from 'express';
 const router = express.Router();
-const ordenCompraController = require('../controllers/ordenCompraController');
+import * as ordenCompraController from '../controllers/ordenCompraController.js';
 
 router.get('/', ordenCompraController.obtenerOrdenesCompra);
-router.get('/:id', ordenCompraController.obtenerOrdenCompraPorId);
-router.post('/', ordenCompraController.crearOrdenCompra);
-router.put('/:id', ordenCompraController.actualizarOrdenCompra);
-router.delete('/:id', ordenCompraController.eliminarOrdenCompra);
+router.get('/:id', ordenCompraController.obtenerOrdenPorId);
+router.post('/', ordenCompraController.registrarOrdenCompra);
+//router.put('/:id', ordenCompraController.actualizarOrdenCompra);
+//router.delete('/:id', ordenCompraController.eliminarOrdenCompra);
 
-module.exports = router;
+export default router;

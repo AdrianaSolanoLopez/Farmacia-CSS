@@ -6,7 +6,7 @@
 //Se recorren los productos vendidos: Se insertan en DetalleVenta Se descuenta la cantidad desde los lotes (priorizando los que estén más cerca de vencer: FEFO)
 // Se genera la factura.
 
-const db = require('../db');
+const db = require('.../config/db');
 const moment = require('moment');
 
 // Registrar una venta con lógica FEFO y usuario

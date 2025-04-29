@@ -1,6 +1,6 @@
 import app from './app.js';
 import dotenv from 'dotenv';
-import pool from './config/db.js';
+import pool from './src/config/db.js';
 
 dotenv.config();
 
@@ -16,6 +16,6 @@ app.listen(PORT, () => {
     console.log('Connected to SQL Server successfully.');
   } catch (error) {
     console.error('Failed to connect to SQL Server:', error.message);
-    process.exit(1); // Termina el proceso si falla la conexión
+    process.exit(1);
   }
 })();

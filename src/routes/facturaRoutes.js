@@ -1,11 +1,10 @@
-//11. Rutas de Facturación (facturaRoutes.js)
-
-const express = require('express');
+// src/routes/facturaRoutes.js
+import express from 'express';
 const router = express.Router();
-const facturaController = require('../controllers/facturaController');
+import * as facturaController from '../controllers/facturaController.js';
 
 router.get('/', facturaController.obtenerFacturas);
 router.get('/:id', facturaController.obtenerFacturaPorId);
 router.post('/', facturaController.crearFactura);
 
-module.exports = router;
+export default router;

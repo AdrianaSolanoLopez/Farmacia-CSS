@@ -1,11 +1,10 @@
-//10. Rutas de Devoluciones (devolucionRoutes.js)
-
-const express = require('express');
+// src/routes/devolucionRoutes.js
+import express from 'express';
 const router = express.Router();
-const devolucionController = require('../controllers/devolucionController');
+import * as devolucionController from '../controllers/devolucionController.js';
 
 router.get('/', devolucionController.obtenerDevoluciones);
 router.get('/:id', devolucionController.obtenerDevolucionPorId);
 router.post('/', devolucionController.registrarDevolucion);
 
-module.exports = router;
+export default router;

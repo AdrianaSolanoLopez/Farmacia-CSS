@@ -1,20 +1,19 @@
-//4. Rutas de Productos (productosRoutes.js)
-
-const express = require('express');
+// src/routes/productosRoutes.js
+import express from 'express';
 const router = express.Router();
-const productoController = require('../controllers/productoController');
+import * as productoController from '../controllers/productoController.js';
 
-router.get('/', productoController.obtenerProductos);
-router.get('/:id', productoController.obtenerProductoPorId);
-router.post('/', productoController.crearProducto);
-router.put('/:id', productoController.actualizarProducto);
-router.delete('/:id', productoController.eliminarProducto);
+router.get('/', productoController.getAllProducts);
+router.get('/:id', productoController.getProductById);
+router.post('/', productoController.createProduct);
+router.put('/:id', productoController.updateProduct);
+router.delete('/:id', productoController.deleteProduct);
 
 // Lotes relacionados
-router.get('/:id/lotes', productoController.obtenerLotesPorProducto);
-router.post('/:id/lotes', productoController.agregarLoteAProducto);
+//router.get('/:id/lotes', productoController.obtenerLotesPorProducto);
+//router.post('/:id/lotes', productoController.agregarLoteAProducto);
 
 // Productos por vencer
-router.get('/alertas/vencimientos', productoController.productosProximosAVencer);
+//router.get('/alertas/vencimientos', productoController.productosProximosAVencer);
 
-module.exports = router;
+export default router;

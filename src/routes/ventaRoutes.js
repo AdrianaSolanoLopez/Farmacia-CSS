@@ -1,11 +1,12 @@
-//12. Rutas de Ventas (ventaRoutes.js)
-
-const express = require('express');
+// src/routes/ventaRoutes.js
+import express from 'express';
 const router = express.Router();
-const ventaController = require('../controllers/ventaController');
+import * as ventaController from '../controllers/ventaController.js';
 
-router.get('/', ventaController.obtenerVentas);
-router.get('/:id', ventaController.obtenerVentaPorId);
+router.get('/', ventaController.getHistorialVentas);
+router.get('/:id', ventaController.getDetalleVenta);
 router.post('/', ventaController.registrarVenta);
+//router.get('/fecha', ventaController.getVentasPorFecha);
+//router.delete('/:id', ventaController.eliminarVenta);
 
-module.exports = router;
+export default router;

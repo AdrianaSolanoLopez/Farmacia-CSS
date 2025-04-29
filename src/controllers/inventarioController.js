@@ -4,7 +4,7 @@
 //Ajustes de inventario (entrada o salida manual por pérdida, daño, error, etc.)
 //Consultar historial de ajustes.
 
-const db = require('../db');
+const db = require('../config/db');
 const moment = require('moment');
 
 // Obtener stock actual de todos los productos
@@ -52,7 +52,7 @@ exports.ajustarInventario = async (req, res) => {
   if (!lote_id || !tipo_ajuste || !cantidad || !motivo) {
     return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
   }
-  
+
   if (cantidad <= 0) {
     return res.status(400).json({ mensaje: 'La cantidad debe ser mayor que 0.' });
   }

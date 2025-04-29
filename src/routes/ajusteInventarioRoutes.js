@@ -1,10 +1,9 @@
-//6. Rutas de Ajustes de Inventario (ajusteInventarioRoutes.js)
-
-const express = require('express');
+// src/routes/ajusteInventarioRoutes.js
+import express from 'express';
 const router = express.Router();
-const ajusteController = require('../controllers/ajusteInventarioController');
+import * as ajusteController from '../controllers/ajusteInventarioController.js';
 
 router.get('/', ajusteController.obtenerAjustes);
 router.post('/', ajusteController.registrarAjuste);
 
-module.exports = router;
+export default router;

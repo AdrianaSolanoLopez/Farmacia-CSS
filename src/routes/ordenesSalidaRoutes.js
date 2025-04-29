@@ -1,13 +1,12 @@
-//8. Rutas de Órdenes de Salida (ordenesSalidaRoutes.js)
-
-const express = require('express');
+// src/routes/ordenesSalidaRoutes.js
+import express from 'express';
 const router = express.Router();
-const ordenSalidaController = require('../controllers/ordenesSalidaController');
+import * as ordenesSalidaController from '../controllers/ordenesSalidaController.js';
 
-router.get('/', ordenSalidaController.obtenerOrdenesSalida);
-router.get('/:id', ordenSalidaController.obtenerOrdenSalidaPorId);
-router.post('/', ordenSalidaController.crearOrdenSalida);
-router.put('/:id', ordenSalidaController.actualizarOrdenSalida);
-router.delete('/:id', ordenSalidaController.eliminarOrdenSalida);
+router.get('/', ordenesSalidaController.obtenerOrdenesSalida);
+//router.get('/:id', ordenesSalidaController.obtenerOrdenSalidaPorId);
+router.post('/', ordenesSalidaController.registrarOrdenSalida);
+//router.put('/:id', ordenesSalidaController.actualizarOrdenSalida);
+//router.delete('/:id', ordenesSalidaController.eliminarOrdenSalida);
 
-module.exports = router;
+export default router;

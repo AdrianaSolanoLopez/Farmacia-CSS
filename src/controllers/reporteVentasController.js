@@ -3,7 +3,7 @@
 //este controlador Obtiene todas las ventas entre dos fechas, Mostrar totales por venta y por día
 //Incluir detalles como productos vendidos, cantidades, precios, etc.
 
-const db = require('../db');
+const db = require('../config/db');
 
 // Reporte de ventas por rango de fechas
 exports.getVentasPorFecha = async (req, res) => {

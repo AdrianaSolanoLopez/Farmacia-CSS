@@ -1,29 +1,27 @@
-//routes/index.js
+// src/routes/index.js
+import express from 'express';
 
-const express = require('express');
+import ajusteInventarioRoutes from './ajusteInventarioRoutes.js';
+import alertasRoutes from './alertasRoutes.js';
+import clienteRoutes from './clientesRoutes.js';
+import configuracionRoutes from './configuracionRoutes.js';
+import consultasClientesRoutes from './consultasClientesRoutes.js';
+import devolucionRoutes from './devolucionRoutes.js';
+import facturaRoutes from './facturaRoutes.js';
+import historialCambiosRoutes from './historialCambiosRoutes.js';
+import inventarioRoutes from './inventarioRoutes.js';
+import ordenCompraRoutes from './ordenCompraRoutes.js';
+import ordenesSalidaRoutes from './ordenesSalidaRoutes.js';
+import productoRoutes from './productosRoutes.js';
+import recepcionRoutes from './recepcionRoutes.js';
+import reportesRoutes from './reportesRoutes.js';
+import reporteVentasRoutes from './reporteVentasRoutes.js';
+import ventaRoutes from './ventaRoutes.js';
+import proveedorRoutes from './proveedorRoutes.js';
+import autenticacionRoutes from './authRoutes.js';
+
 const router = express.Router();
 
-// Importar cada grupo de rutas
-const ajusteInventarioRoutes = require('./ajusteInventarioRoutes');
-const alertasRoutes = require('./alertasRoutes');
-const clienteRoutes = require('./clienteRoutes');
-const configuracionRoutes = require('./configuracionRoutes');
-const consultasClientesRoutes = require('./consultasClientesRoutes');
-const devolucionRoutes = require('./devolucionRoutes');
-const facturaRoutes = require('./facturaRoutes');
-const historialCambiosRoutes = require('./historialCambiosRoutes');
-const inventarioRoutes = require('./inventarioRoutes');
-const ordenCompraRoutes = require('./ordenCompraRoutes');
-const ordenesSalidaRoutes = require('./ordenesSalidaRoutes');
-const productoRoutes = require('./productoRoutes');
-const recepcionRoutes = require('./recepcionRoutes');
-const reportesRoutes = require('./reportesRoutes');
-const reporteVentasRoutes = require('./reporteVentasRoutes');
-const ventaRoutes = require('./ventaRoutes');
-const proveedorRoutes = require('./proveedorRoutes');
-const autenticacionRoutes = require('./autenticacionRoutes');
-
-// Usar las rutas bajo un prefijo opcional si deseas
 router.use('/ajustes-inventario', ajusteInventarioRoutes);
 router.use('/alertas', alertasRoutes);
 router.use('/clientes', clienteRoutes);
@@ -43,4 +41,4 @@ router.use('/ventas', ventaRoutes);
 router.use('/proveedores', proveedorRoutes);
 router.use('/auth', autenticacionRoutes);
 
-module.exports = router;
+export default router;

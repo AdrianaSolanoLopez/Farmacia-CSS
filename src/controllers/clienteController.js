@@ -3,7 +3,7 @@
 //Consultar clientes existentes, Actualizar información de clientes
 //Eliminar (o desactivar) clientes si es necesario.
 
-const db = require('../db');
+const db = require('../config/db');
 
 // Crear nuevo cliente
 exports.crearCliente = async (req, res) => {

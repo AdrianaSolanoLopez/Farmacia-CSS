@@ -1,16 +1,15 @@
-//5. Rutas de Inventario (inventarioRoutes.js)
-
-const express = require('express');
+// src/routes/inventarioRoutes.js
+import express from 'express';
 const router = express.Router();
-const inventarioController = require('../controllers/inventarioController');
+import * as inventarioController from '../controllers/inventarioController.js';
 
 // Obtener inventario general
-router.get('/', inventarioController.obtenerInventario);
+router.get('/', inventarioController.getStockActual);
 
 // Obtener inventario por producto
-router.get('/producto/:id', inventarioController.obtenerInventarioPorProducto);
+router.get('/producto/:id', inventarioController.getStockByProductoId);
 
 // Actualizar stock manualmente (por ejemplo para ajustes)
-router.put('/actualizar-stock/:id', inventarioController.actualizarStockManual);
+router.put('/actualizar-stock/:id', inventarioController.ajustarInventario);
 
-module.exports = router;
+export default router;

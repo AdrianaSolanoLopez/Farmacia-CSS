@@ -1,11 +1,10 @@
-//9. Rutas de Recepción de Productos (recepcionRoutes.js)
-
-const express = require('express');
+// src/routes/recepcionRoutes.js
+import express from 'express';
 const router = express.Router();
-const recepcionController = require('../controllers/recepcionController');
+import * as recepcionController from '../controllers/recepcionController.js';
 
-router.get('/', recepcionController.obtenerRecepciones);
-router.get('/:id', recepcionController.obtenerRecepcionPorId);
-router.post('/', recepcionController.registrarRecepcion);
+//router.get('/', recepcionController.obtenerRecepciones);
+//router.get('/:id', recepcionController.obtenerRecepcionPorId);
+//router.post('/', recepcionController.registrarRecepcion);
 
-module.exports = router;
+export default router;

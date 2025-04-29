@@ -1,13 +1,12 @@
-//3. Rutas de Proveedores (proveedorRoutes.js)
-
-const express = require('express');
+// src/routes/proveedorRoutes.js
+import express from 'express';
 const router = express.Router();
-const proveedorController = require('../controllers/ProveedorController');
+import * as proveedorController from '../controllers/ProveedorController.js';
 
 router.get('/', proveedorController.obtenerProveedores);
-router.get('/:id', proveedorController.obtenerProveedorPorId);
+router.get('/:id', proveedorController.obtenerProveedor);
 router.post('/', proveedorController.crearProveedor);
 router.put('/:id', proveedorController.actualizarProveedor);
 router.delete('/:id', proveedorController.eliminarProveedor);
 
-module.exports = router;
+export default router;

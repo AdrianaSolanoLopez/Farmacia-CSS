@@ -1,8 +1,7 @@
-//18. Rutas de Alertas (alertasRoutes.js)
-
-const express = require('express');
+// src/routes/alertasRoutes.js
+import express from 'express';
 const router = express.Router();
-const alertasController = require('../controllers/alertasController');
+import * as alertasController from '../controllers/alertasController.js';
 
 // Productos por vencer próximamente
 router.get('/productos-proximos-a-vencer', alertasController.productosProximosAVencer);
@@ -10,4 +9,4 @@ router.get('/productos-proximos-a-vencer', alertasController.productosProximosAV
 // Productos vencidos
 router.get('/productos-vencidos', alertasController.productosVencidos);
 
-module.exports = router;
+export default router;
