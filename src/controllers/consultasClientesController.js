@@ -1,6 +1,8 @@
 //Controlador: consultasClientesController.js
 
-const db = require('../config/db');
+// src/controllers/consultasClientesController.js
+
+const db = require('../config/db.js');
 
 const consultasClientesController = {
   // Buscar cliente por documento de identidad

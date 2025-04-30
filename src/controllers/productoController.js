@@ -6,7 +6,7 @@
 
 // productoControler
 
-const db = require('../config/db'); // o tu conexión pool a SQL Server
+const db = require('../config/db.js'); // o tu conexión pool a SQL Server
 const moment = require('moment');
 
 // Crear un producto

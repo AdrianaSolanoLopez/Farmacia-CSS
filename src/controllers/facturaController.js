@@ -16,6 +16,7 @@ const facturaController = {
     try {
       const { cliente_id, productos, medio_pago } = req.body;
 
+      // Validar productos
       if (!productos || productos.length === 0) {
         return res.status(400).json({ mensaje: 'Debe incluir productos en la factura.' });
       }
@@ -40,9 +41,12 @@ const facturaController = {
         const { producto_id, cantidad } = item;
 
         const producto = await Producto.findByPk(producto_id);
-        if (!producto) continue;
+        if (!producto) {
+          console.warn(`Producto ID ${producto_id} no encontrado.`);
+          continue; // Si el producto no existe, saltamos al siguiente
+        }
 
-        // Obtener lotes disponibles priorizando los que están por caducar
+        // Verificar stock disponible en lotes
         const lotes = await Lote.findAll({
           where: {
             producto_id,
@@ -56,8 +60,15 @@ const facturaController = {
         for (const lote of lotes) {
           if (cantidadRestante <= 0) break;
 
-          const usarCantidad = Math.min(cantidadRestante, lote.cantidad_disponible);
+          const cantidadDisponible = lote.cantidad_disponible;
+          const usarCantidad = Math.min(cantidadRestante, cantidadDisponible);
           const precio_unitario = producto.costo_venta;
+
+          // Validar que el precio sea válido
+          if (!precio_unitario || precio_unitario <= 0) {
+            console.warn(`Producto ID ${producto_id} tiene un precio inválido.`);
+            return res.status(400).json({ mensaje: 'El precio del producto es inválido.' });
+          }
 
           // Registrar detalle de factura
           await DetalleFactura.create({
@@ -103,6 +114,7 @@ const facturaController = {
 
       res.json(facturas);
     } catch (error) {
+      console.error('Error al listar facturas:', error);
       res.status(500).json({ mensaje: 'Error al listar facturas.' });
     }
   },

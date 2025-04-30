@@ -1,75 +1,90 @@
+// src/controllers/AutenticacionController.js
+
 import sql from 'mssql';
 import pool from '../config/db.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 const AutenticacionController = {
+  // Registro de nuevo usuario
   register: async (req, res) => {
     const { nombre, correo, contraseña, rol } = req.body;
 
     try {
-      // Verificar si el correo ya está registrado
-      const correoExistente = await pool.request()
+      // Validar si el correo ya existe
+      const { recordset: usuariosExistentes } = await pool.request()
         .input('correo', sql.NVarChar, correo)
-        .query('SELECT * FROM Usuarios WHERE correo = @correo');
+        .query('SELECT id FROM Usuarios WHERE correo = @correo');
 
-      if (correoExistente.recordset.length > 0) {
-        return res.status(400).json({ message: 'El correo ya está registrado' });
+      if (usuariosExistentes.length > 0) {
+        return res.status(400).json({ message: 'El correo ya está registrado.' });
       }
 
-      // Hash de la contraseña
+      // Hashear contraseña
       const hashedPassword = await bcrypt.hash(contraseña, 10);
 
-      // Insertar el nuevo usuario en la base de datos
+      // Insertar nuevo usuario
       await pool.request()
         .input('nombre', sql.NVarChar, nombre)
         .input('correo', sql.NVarChar, correo)
         .input('contraseña', sql.NVarChar, hashedPassword)
         .input('rol', sql.NVarChar, rol)
-        .query('INSERT INTO Usuarios (nombre, correo, contraseña, rol) VALUES (@nombre, @correo, @contraseña, @rol)');
+        .query(`
+          INSERT INTO Usuarios (nombre, correo, contraseña, rol) 
+          VALUES (@nombre, @correo, @contraseña, @rol)
+        `);
 
-      res.status(201).json({ message: 'Usuario registrado con éxito' });
+      res.status(201).json({ message: 'Usuario registrado con éxito.' });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error al registrar el usuario' });
+      console.error('Error en registro:', error);
+      res.status(500).json({ message: 'Error al registrar el usuario.' });
     }
   },
 
+  // Inicio de sesión
   login: async (req, res) => {
     const { correo, contraseña } = req.body;
 
     try {
-      // Buscar el usuario en la base de datos
-      const usuario = await pool.request()
+      // Buscar usuario por correo
+      const { recordset } = await pool.request()
         .input('correo', sql.NVarChar, correo)
-        .query('SELECT * FROM Usuarios WHERE correo = @correo');
+        .query('SELECT id, nombre, correo, contraseña, rol FROM Usuarios WHERE correo = @correo');
 
-      if (usuario.recordset.length === 0) {
-        return res.status(404).json({ message: 'Correo o contraseña incorrectos' });
+      if (recordset.length === 0) {
+        return res.status(401).json({ message: 'Correo o contraseña incorrectos.' });
       }
 
-      const user = usuario.recordset[0];
+      const user = recordset[0];
 
-      // Comparar la contraseña ingresada con la contraseña hasheada
+      // Verificar contraseña
       const contraseñaValida = await bcrypt.compare(contraseña, user.contraseña);
-
       if (!contraseñaValida) {
-        return res.status(401).json({ message: 'Correo o contraseña incorrectos' });
+        return res.status(401).json({ message: 'Correo o contraseña incorrectos.' });
       }
 
-      // Crear un token JWT
+      // Crear token JWT
       const token = jwt.sign(
-        { usuarioId: user.usuario_id, rol: user.rol },
+        { id: user.id, rol: user.rol },
         process.env.JWT_SECRET || 'secret',
         { expiresIn: '1h' }
       );
 
-      res.json({ message: 'Inicio de sesión exitoso', token });
+      res.json({
+        message: 'Inicio de sesión exitoso.',
+        token,
+        usuario: {
+          id: user.id,
+          nombre: user.nombre,
+          correo: user.correo,
+          rol: user.rol
+        }
+      });
     } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error al iniciar sesión' });
+      console.error('Error en login:', error);
+      res.status(500).json({ message: 'Error al iniciar sesión.' });
     }
-  },
+  }
 };
 
 export default AutenticacionController;

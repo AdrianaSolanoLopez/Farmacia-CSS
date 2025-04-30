@@ -3,10 +3,11 @@
 //Se logra Listar productos con lotes que vencen en los próximos X días.
 //Listar productos que ya están vencidos. Mostrar cantidad disponible por lote próximo a vencer o vencido.
 
-const db = require('../config/db');
+// src/controllers/alertasController.js
+import db from '../config/db.js';
 
-// Lotes próximos a vencer
-exports.getLotesPorVencer = async (req, res) => {
+// Obtener lotes próximos a vencer
+export const getLotesPorVencer = async (req, res) => {
   const dias_alerta = parseInt(req.query.dias_alerta || 30); // Valor por defecto: 30 días
 
   if (isNaN(dias_alerta) || dias_alerta < 1) {
@@ -20,14 +21,18 @@ exports.getLotesPorVencer = async (req, res) => {
         P.nombre AS producto,
         L.numero_lote,
         L.fecha_vencimiento,
-        L.stock,
+        L.cantidad_disponible AS stock,
         DATEDIFF(DAY, GETDATE(), L.fecha_vencimiento) AS dias_restantes
       FROM Lotes L
       JOIN Productos P ON L.producto_id = P.id
       WHERE L.fecha_vencimiento BETWEEN GETDATE() AND DATEADD(DAY, @dias_alerta, GETDATE())
-        AND L.stock > 0
+        AND L.cantidad_disponible > 0
       ORDER BY L.fecha_vencimiento ASC
     `, { dias_alerta });
+
+    if (resultado.recordset.length === 0) {
+      return res.status(200).json({ message: 'No hay lotes próximos a vencer.', data: [] });
+    }
 
     res.json(resultado.recordset);
   } catch (error) {
@@ -36,8 +41,8 @@ exports.getLotesPorVencer = async (req, res) => {
   }
 };
 
-// Lotes ya vencidos
-exports.getLotesVencidos = async (req, res) => {
+// Obtener lotes ya vencidos
+export const getLotesVencidos = async (req, res) => {
   try {
     const resultado = await db.query(`
       SELECT 
@@ -45,14 +50,18 @@ exports.getLotesVencidos = async (req, res) => {
         P.nombre AS producto,
         L.numero_lote,
         L.fecha_vencimiento,
-        L.stock,
+        L.cantidad_disponible AS stock,
         DATEDIFF(DAY, L.fecha_vencimiento, GETDATE()) AS dias_vencido
       FROM Lotes L
       JOIN Productos P ON L.producto_id = P.id
       WHERE L.fecha_vencimiento < GETDATE()
-        AND L.stock > 0
+        AND L.cantidad_disponible > 0
       ORDER BY L.fecha_vencimiento ASC
     `);
+
+    if (resultado.recordset.length === 0) {
+      return res.status(200).json({ message: 'No hay lotes vencidos.', data: [] });
+    }
 
     res.json(resultado.recordset);
   } catch (error) {
@@ -60,7 +69,3 @@ exports.getLotesVencidos = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
 };
-
-
-//Recomendaciones:Puedes dejar el valor de dias_alerta configurable desde el frontend (por defecto 30).
-//Estas alertas pueden mostrarse automáticamente en el dashboard del sistema.

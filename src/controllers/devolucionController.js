@@ -6,22 +6,30 @@
 //Se identifica de qué venta y lote proviene el producto (si aplica).
 //Se suma nuevamente al stock del lote si es aceptada. Se lleva registro del motivo y estado.
 
-const db = require('../config/db');
+// src/controllers/devolucionesController.js
+const db = require('../config/db.js');
 const moment = require('moment');
 
 exports.registrarDevolucion = async (req, res) => {
   const { venta_id, producto_id, lote_id, cantidad, motivo, tipo } = req.body;
 
+  // Validación de campos obligatorios
   if (!venta_id || !producto_id || !lote_id || !cantidad || !motivo || !tipo) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
   }
 
   try {
-    // Validar existencia del lote y stock actual
+    // Validar existencia del lote y stock disponible
     const loteResult = await db.query(`SELECT cantidad_disponible FROM Lotes WHERE id = @lote_id`, { lote_id });
 
     if (loteResult.recordset.length === 0) {
       return res.status(404).json({ error: 'Lote no encontrado.' });
+    }
+
+    // Verificar que la cantidad de devolución no exceda el stock disponible
+    const cantidadDisponible = loteResult.recordset[0].cantidad_disponible;
+    if (cantidad > cantidadDisponible) {
+      return res.status(400).json({ error: 'La cantidad a devolver no puede ser mayor que el stock disponible en el lote.' });
     }
 
     // Insertar devolución
@@ -84,7 +92,6 @@ exports.getHistorialDevoluciones = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor al obtener historial de devoluciones.' });
   }
 };
-
 
 //Ejemplos de uso de campos:
 // Campo	Uso

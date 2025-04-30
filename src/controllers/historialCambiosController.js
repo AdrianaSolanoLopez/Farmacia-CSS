@@ -1,8 +1,7 @@
-//3. Controlador: Historial de Cambios (historialCambiosController.js)
-
-const db = require('../config/db');
+const db = require('../config/db.js');
 
 const historialCambiosController = {
+  // Obtener historial de cambios
   obtenerHistorial: async (req, res) => {
     try {
       const historial = await db.query(`
@@ -18,20 +17,28 @@ const historialCambiosController = {
     }
   },
 
+  // Registrar un nuevo cambio
   registrarCambio: async (req, res) => {
     const { usuario, modulo_afectado, descripcion_cambio } = req.body;
 
+    // Validaciones de los datos
     if (!usuario || !modulo_afectado || !descripcion_cambio) {
       return res.status(400).json({ mensaje: 'Todos los campos son obligatorios.' });
     }
 
     try {
-      const result = await db.query(
-        `INSERT INTO HistorialCambios (fecha, usuario, modulo_afectado, descripcion_cambio)
-         OUTPUT INSERTED.id
-         VALUES (GETDATE(), @usuario, @modulo_afectado, @descripcion_cambio)`,
-        { usuario, modulo_afectado, descripcion_cambio }
-      );
+      // Usar parámetros para la consulta, evitando inyecciones SQL
+      const query = `
+        INSERT INTO HistorialCambios (fecha, usuario, modulo_afectado, descripcion_cambio)
+        OUTPUT INSERTED.id
+        VALUES (GETDATE(), @usuario, @modulo_afectado, @descripcion_cambio)
+      `;
+
+      const result = await db.query(query, {
+        usuario,
+        modulo_afectado,
+        descripcion_cambio
+      });
 
       res.status(201).json({ 
         mensaje: '✅ Cambio registrado correctamente.', 

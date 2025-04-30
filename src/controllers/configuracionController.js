@@ -1,12 +1,14 @@
 //4. Controlador: Configuración del Sistema (configuracionController.js)
 
-const db = require('../config/db');
+// src/controllers/configuracionController.js
+
+const db = require('../config/db.js');
 
 const configuracionController = {
   // Obtener la configuración actual del sistema
   obtenerConfiguracion: async (req, res) => {
     try {
-      const config = await db.query(`SELECT * FROM ConfiguracionSistema`);
+      const config = await db.query('SELECT * FROM ConfiguracionSistema');
 
       if (config.recordset.length === 0) {
         return res.status(404).json({ mensaje: 'No se encontró configuración registrada.' });
@@ -34,6 +36,7 @@ const configuracionController = {
     }
 
     try {
+      // Actualizar configuración en la base de datos
       await db.query(
         `UPDATE ConfiguracionSistema 
          SET alerta_dias_vencimiento = @alertaDiasVencimiento, 
@@ -41,8 +44,8 @@ const configuracionController = {
         { alertaDiasVencimiento, porcentajeIVA }
       );
 
-      // Consultamos de nuevo para confirmar y devolver la config actualizada
-      const configActualizada = await db.query(`SELECT * FROM ConfiguracionSistema`);
+      // Consultamos de nuevo para confirmar y devolver la configuración actualizada
+      const configActualizada = await db.query('SELECT * FROM ConfiguracionSistema');
       res.json({
         mensaje: 'Configuración actualizada con éxito.',
         configuracion: configActualizada.recordset[0]

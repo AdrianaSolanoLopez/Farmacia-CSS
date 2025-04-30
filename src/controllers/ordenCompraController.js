@@ -2,7 +2,7 @@
 
 // controllers/ordenCompraController.js
 
-const db = require('../config/db');
+const db = require('../config/db.js');
 
 const ordenesCompraController = {
   // Registrar Orden de Compra

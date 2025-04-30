@@ -1,7 +1,7 @@
 //ProveedorController (para gestión de proveedores)
 //Este controlador gestionará las operaciones CRUD de proveedores.
 
-const db = require('../config/db');
+const db = require('../config/db.js');
 
 const proveedorController = {
   // Obtener todos los proveedores

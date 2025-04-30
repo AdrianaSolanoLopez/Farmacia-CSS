@@ -4,7 +4,7 @@
 //Ajustes de inventario (entrada o salida manual por pérdida, daño, error, etc.)
 //Consultar historial de ajustes.
 
-const db = require('../config/db');
+const db = require('../config/db.js');
 const moment = require('moment');
 
 // Obtener stock actual de todos los productos
@@ -62,7 +62,7 @@ exports.ajustarInventario = async (req, res) => {
   }
 
   try {
-    // Verificar si el lote existe
+    // Verificar si el lote existe y obtener la cantidad disponible
     const loteResult = await db.query(`
       SELECT cantidad_disponible FROM Lotes WHERE id = @lote_id
     `, { lote_id });
@@ -72,7 +72,7 @@ exports.ajustarInventario = async (req, res) => {
     }
 
     const lote = loteResult.recordset[0];
-    const nuevaCantidad = tipo_ajuste === 'entrada' ? lote.cantidad_disponible + cantidad : lote.cantidad_disponible - cantidad;
+    let nuevaCantidad = lote.cantidad_disponible;
 
     // Verificar si hay suficiente stock para la salida
     if (tipo_ajuste === 'salida' && nuevaCantidad < 0) {
@@ -83,11 +83,11 @@ exports.ajustarInventario = async (req, res) => {
     const signo = tipo_ajuste === 'entrada' ? '+' : '-';
     await db.query(`
       UPDATE Lotes
-      SET cantidad_disponible = cantidad_disponible ${signo} @cantidad
+      SET cantidad_disponible = @nuevaCantidad
       WHERE id = @lote_id
-    `, { cantidad, lote_id });
+    `, { nuevaCantidad, lote_id });
 
-    // Registrar el ajuste
+    // Registrar el ajuste en el historial
     await db.query(`
       INSERT INTO AjustesInventario (lote_id, tipo_ajuste, cantidad, motivo, fecha)
       VALUES (@lote_id, @tipo_ajuste, @cantidad, @motivo, @fecha)

@@ -1,13 +1,7 @@
-//7. Controlador: Ajustes de Inventario
-//Este módulo permite registrar aumentos o disminuciones de stock por causas distintas a ventas o devoluciones: errores, pérdidas, inventarios físicos, entre otros.
-//Este controlador Registrar un ajuste (positivo o negativo) de inventario
-//Asociar el ajuste a un lote, producto y motivo, Ver el historial de ajustes realizados
+// src/controllers/ajusteInventarioController.js
 
-import pool from '../config/db.js';
-
-
-// Crear un ajuste de inventario
-exports.crearAjuste = async (req, res) => {
+// Cambia el nombre de la función a registrarAjuste
+export async function registrarAjuste(req, res) {
   const { producto_id, lote_id, cantidad, tipo_ajuste, motivo, usuario_id } = req.body;
 
   try {
@@ -15,8 +9,9 @@ exports.crearAjuste = async (req, res) => {
       return res.status(400).json({ error: 'Tipo de ajuste inválido. Debe ser "positivo" o "negativo".' });
     }
 
-    // Validar que el lote existe
-    const loteResult = await db.query(`SELECT cantidad_disponible FROM Lotes WHERE id = @lote_id`, { lote_id });
+    const loteResult = await pool.request()
+      .input('lote_id', lote_id)
+      .query('SELECT cantidad_disponible FROM Lotes WHERE id = @lote_id');
 
     if (loteResult.recordset.length === 0) {
       return res.status(404).json({ error: 'Lote no encontrado.' });
@@ -28,19 +23,23 @@ exports.crearAjuste = async (req, res) => {
       return res.status(400).json({ error: `Cantidad insuficiente en el lote. Disponible: ${disponible}` });
     }
 
-    // Insertar el ajuste en la tabla de ajustes
-    await db.query(`
-      INSERT INTO AjustesInventario (producto_id, lote_id, cantidad, tipo_ajuste, motivo, fecha, usuario_id)
-      VALUES (@producto_id, @lote_id, @cantidad, @tipo_ajuste, @motivo, GETDATE(), @usuario_id)
-    `, { producto_id, lote_id, cantidad, tipo_ajuste, motivo, usuario_id });
+    // Insertar el ajuste
+    await pool.request()
+      .input('producto_id', producto_id)
+      .input('lote_id', lote_id)
+      .input('cantidad', cantidad)
+      .input('tipo_ajuste', tipo_ajuste)
+      .input('motivo', motivo)
+      .input('usuario_id', usuario_id)
+      .query(`INSERT INTO AjustesInventario (producto_id, lote_id, cantidad, tipo_ajuste, motivo, fecha, usuario_id)
+              VALUES (@producto_id, @lote_id, @cantidad, @tipo_ajuste, @motivo, GETDATE(), @usuario_id)`);
 
     // Actualizar la cantidad en el lote
     const operador = tipo_ajuste === 'positivo' ? '+' : '-';
-    await db.query(`
-      UPDATE Lotes
-      SET cantidad_disponible = cantidad_disponible ${operador} @cantidad
-      WHERE id = @lote_id
-    `, { cantidad });
+    await pool.request()
+      .input('cantidad', cantidad)
+      .input('lote_id', lote_id)
+      .query(`UPDATE Lotes SET cantidad_disponible = cantidad_disponible ${operador} @cantidad WHERE id = @lote_id`);
 
     res.status(201).json({ message: 'Ajuste registrado correctamente' });
 
@@ -48,47 +47,4 @@ exports.crearAjuste = async (req, res) => {
     console.error('Error al crear ajuste de inventario:', error);
     res.status(500).json({ error: 'Error interno del servidor.' });
   }
-};
-
-// Listar todos los ajustes de inventario
-exports.getAjustes = async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT A.*, P.nombre AS producto, L.numero_lote
-      FROM AjustesInventario A
-      JOIN Productos P ON A.producto_id = P.id
-      JOIN Lotes L ON A.lote_id = L.id
-      ORDER BY A.fecha DESC
-    `);
-
-    res.json(result.recordset);
-  } catch (error) {
-    console.error('Error al obtener ajustes:', error);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-};
-
-// Obtener ajustes por producto
-exports.getAjustesPorProducto = async (req, res) => {
-  const { producto_id } = req.params;
-
-  try {
-    const result = await db.query(`
-      SELECT A.*, P.nombre AS producto, L.numero_lote
-      FROM AjustesInventario A
-      JOIN Lotes L ON A.lote_id = L.id
-      JOIN Productos P ON A.producto_id = P.id
-      WHERE A.producto_id = @producto_id
-      ORDER BY A.fecha DESC
-    `, { producto_id });
-
-    res.json(result.recordset);
-  } catch (error) {
-    console.error('Error al obtener ajustes por producto:', error);
-    res.status(500).json({ error: 'Error interno del servidor.' });
-  }
-};
-
-//Consideraciones: tipo_ajuste puede ser "positivo" o "negativo" (validar en frontend y backend).
-//Se registra el usuario_id para saber quién hizo el ajuste.
-//Muy útil para auditorías o ajustes manuales.
+}
