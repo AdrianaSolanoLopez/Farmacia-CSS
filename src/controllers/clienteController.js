@@ -1,10 +1,3 @@
-//5. Controlador: Gestión de Clientes
-//Este controlador se encargará de: Registrar nuevos clientes
-//Consultar clientes existentes, Actualizar información de clientes
-//Eliminar (o desactivar) clientes si es necesario.
-
-// src/controllers/ClienteController.js
-
 import sql from 'mssql';
 import pool from '../config/db.js';
 
