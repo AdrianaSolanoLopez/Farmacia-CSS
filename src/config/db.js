@@ -16,35 +16,40 @@ const dbConfig = {
   pool: {
     max: 10,
     min: 0,
-    idleTimeoutMillis: 30000
-  }
+    idleTimeoutMillis: 30000,
+  },
 };
 
-// Create connection pool
+// Crear el pool de conexiones
 const pool = new sql.ConnectionPool(dbConfig);
-const poolConnect = pool.connect();
+const poolConnect = pool.connect(); // Esto retorna una promesa
 
-pool.on('error', err => {
-  console.error('Database pool error:', err);
+// Manejo de errores del pool
+pool.on('error', (err) => {
+  console.error('Error en el pool de la base de datos:', err);
 });
 
+// Función para ejecutar procedimientos almacenados
 export async function executeStoredProcedure(procedureName, params = []) {
   try {
-    await poolConnect;
+    await poolConnect; // Esperamos la conexión
     const request = pool.request();
 
-    // Add parameters to request
-    params.forEach(param => {
+    // Agregar parámetros al request
+    params.forEach((param) => {
       request.input(param.name, param.type, param.value);
     });
 
     const result = await request.execute(procedureName);
     return result;
   } catch (error) {
-    console.error(`Error executing stored procedure ${procedureName}:`, error);
+    console.error(`Error al ejecutar el procedimiento almacenado ${procedureName}:`, error);
     throw error;
   }
 }
 
+// Exportar pool para su uso en otros archivos
+export { pool };
 
-export default pool;
+// Exportar el objeto `sql` si lo necesitas para otras consultas
+export default sql;

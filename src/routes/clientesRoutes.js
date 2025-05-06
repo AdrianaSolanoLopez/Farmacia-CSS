@@ -1,7 +1,7 @@
-// src/routes/clientesRoutes.js
+// src/routes/clienteRoutes.js
 
 import express from 'express';
-import ClienteController from '../controllers/clientesController.js';  // Asegúrate de importar correctamente el controlador
+import ClienteController from '../controllers/clienteController.js';  // Asegúrate de importar correctamente el controlador
 
 const router = express.Router();
 

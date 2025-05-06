@@ -10,9 +10,15 @@ const AutenticacionController = {
   register: async (req, res) => {
     const { nombre, correo, contraseña, rol } = req.body;
 
+    if (!nombre || !correo || !contraseña || !rol) {
+      return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
+    }
+
     try {
+      const poolRequest = pool.request();
+
       // Validar si el correo ya existe
-      const { recordset: usuariosExistentes } = await pool.request()
+      const { recordset: usuariosExistentes } = await poolRequest
         .input('correo', sql.NVarChar, correo)
         .query('SELECT id FROM Usuarios WHERE correo = @correo');
 
@@ -45,8 +51,11 @@ const AutenticacionController = {
   login: async (req, res) => {
     const { correo, contraseña } = req.body;
 
+    if (!correo || !contraseña) {
+      return res.status(400).json({ message: 'Correo y contraseña son obligatorios.' });
+    }
+
     try {
-      // Buscar usuario por correo
       const { recordset } = await pool.request()
         .input('correo', sql.NVarChar, correo)
         .query('SELECT id, nombre, correo, contraseña, rol FROM Usuarios WHERE correo = @correo');
@@ -57,13 +66,11 @@ const AutenticacionController = {
 
       const user = recordset[0];
 
-      // Verificar contraseña
       const contraseñaValida = await bcrypt.compare(contraseña, user.contraseña);
       if (!contraseñaValida) {
         return res.status(401).json({ message: 'Correo o contraseña incorrectos.' });
       }
 
-      // Crear token JWT
       const token = jwt.sign(
         { id: user.id, rol: user.rol },
         process.env.JWT_SECRET || 'secret',

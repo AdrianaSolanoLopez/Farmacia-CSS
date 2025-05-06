@@ -2,7 +2,8 @@
 
 // src/controllers/consultasClientesController.js
 
-const db = require('../config/db.js');
+import sql from 'mssql';
+import pool from '../config/db.js';
 
 const consultasClientesController = {
   // Buscar cliente por documento de identidad
@@ -14,10 +15,9 @@ const consultasClientesController = {
     }
 
     try {
-      const cliente = await db.query(
-        `SELECT * FROM Clientes WHERE documento_identidad = @documento`,
-        { documento }
-      );
+      const cliente = await pool.request()
+        .input('documento', sql.VarChar, documento)
+        .query(`SELECT * FROM Clientes WHERE documento_identidad = @documento`);
 
       if (cliente.recordset.length === 0) {
         return res.status(404).json({ mensaje: 'Cliente no encontrado.' });
@@ -25,8 +25,8 @@ const consultasClientesController = {
 
       res.json(cliente.recordset[0]);
     } catch (error) {
-      console.error('❌ Error al consultar cliente por documento:', error);
-      res.status(500).json({ mensaje: 'Error interno del servidor al buscar cliente.' });
+      console.error('Error al consultar cliente por documento:', error);
+      res.status(500).json({ mensaje: 'Error interno al buscar cliente.', error: error.message });
     }
   },
 
@@ -39,25 +39,26 @@ const consultasClientesController = {
     }
 
     try {
-      const historial = await db.query(
-        `SELECT 
-           f.id AS factura_id, 
-           f.fecha, 
-           p.nombre AS nombre_producto, 
-           df.cantidad, 
-           df.precio_venta
-         FROM Facturas f
-         INNER JOIN DetalleFactura df ON f.id = df.factura_id
-         INNER JOIN Productos p ON df.producto_id = p.id
-         WHERE f.cliente_id = @clienteId
-         ORDER BY f.fecha DESC`,
-        { clienteId }
-      );
+      const historial = await pool.request()
+        .input('clienteId', sql.Int, clienteId)
+        .query(`
+          SELECT 
+            f.id AS factura_id, 
+            f.fecha, 
+            p.nombre AS nombre_producto, 
+            df.cantidad, 
+            df.precio_venta
+          FROM Facturas f
+          INNER JOIN DetalleFactura df ON f.id = df.factura_id
+          INNER JOIN Productos p ON df.producto_id = p.id
+          WHERE f.cliente_id = @clienteId
+          ORDER BY f.fecha DESC
+        `);
 
       res.json(historial.recordset);
     } catch (error) {
-      console.error('❌ Error al consultar historial de compras:', error);
-      res.status(500).json({ mensaje: 'Error interno del servidor al consultar compras.' });
+      console.error('Error al consultar historial de compras:', error);
+      res.status(500).json({ mensaje: 'Error interno al consultar compras.', error: error.message });
     }
   },
 
@@ -70,26 +71,27 @@ const consultasClientesController = {
     }
 
     try {
-      const devoluciones = await db.query(
-        `SELECT 
-           d.id, 
-           d.fecha, 
-           p.nombre AS nombre_producto, 
-           d.cantidad_devuelta, 
-           d.motivo
-         FROM Devoluciones d
-         INNER JOIN Productos p ON d.producto_id = p.id
-         WHERE d.cliente_id = @clienteId
-         ORDER BY d.fecha DESC`,
-        { clienteId }
-      );
+      const devoluciones = await pool.request()
+        .input('clienteId', sql.Int, clienteId)
+        .query(`
+          SELECT 
+            d.id, 
+            d.fecha, 
+            p.nombre AS nombre_producto, 
+            d.cantidad_devuelta, 
+            d.motivo
+          FROM Devoluciones d
+          INNER JOIN Productos p ON d.producto_id = p.id
+          WHERE d.cliente_id = @clienteId
+          ORDER BY d.fecha DESC
+        `);
 
       res.json(devoluciones.recordset);
     } catch (error) {
-      console.error('❌ Error al consultar historial de devoluciones:', error);
-      res.status(500).json({ mensaje: 'Error interno del servidor al consultar devoluciones.' });
+      console.error('Error al consultar historial de devoluciones:', error);
+      res.status(500).json({ mensaje: 'Error interno al consultar devoluciones.', error: error.message });
     }
   }
 };
 
-module.exports = consultasClientesController;
+export default consultasClientesController;
