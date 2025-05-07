@@ -1,9 +1,7 @@
-//4. Controlador: Configuración del Sistema (configuracionController.js)
-
 // src/controllers/configuracionController.js
 
 import sql from 'mssql';
-import pool from '../config/db.js';
+import { pool } from '../config/db.js'; // ✅ Corrección aquí
 
 const configuracionController = {
   // Obtener la configuración actual del sistema
@@ -15,10 +13,13 @@ const configuracionController = {
         return res.status(404).json({ mensaje: 'No se encontró configuración registrada.' });
       }
 
-      res.json(resultado.recordset[0]);
+      res.status(200).json(resultado.recordset[0]);
     } catch (error) {
       console.error('Error al obtener configuración:', error);
-      res.status(500).json({ mensaje: 'Error al obtener configuración.', error: error.message });
+      res.status(500).json({
+        mensaje: 'Error al obtener configuración.',
+        error: error.message
+      });
     }
   },
 
@@ -26,9 +27,10 @@ const configuracionController = {
   actualizarConfiguracion: async (req, res) => {
     const { alertaDiasVencimiento, porcentajeIVA } = req.body;
 
+    // Validaciones básicas
     if (
-      typeof alertaDiasVencimiento !== 'number' || isNaN(alertaDiasVencimiento) || alertaDiasVencimiento < 0 ||
-      typeof porcentajeIVA !== 'number' || isNaN(porcentajeIVA) || porcentajeIVA < 0
+      typeof alertaDiasVencimiento !== 'number' || alertaDiasVencimiento < 0 ||
+      typeof porcentajeIVA !== 'number' || porcentajeIVA < 0
     ) {
       return res.status(400).json({
         mensaje: 'Los valores de alertaDiasVencimiento y porcentajeIVA deben ser números válidos y mayores o iguales a cero.'
@@ -46,13 +48,17 @@ const configuracionController = {
         `);
 
       const configActualizada = await pool.request().query('SELECT * FROM ConfiguracionSistema');
-      res.json({
+
+      res.status(200).json({
         mensaje: 'Configuración actualizada con éxito.',
         configuracion: configActualizada.recordset[0]
       });
     } catch (error) {
       console.error('Error al actualizar configuración:', error);
-      res.status(500).json({ mensaje: 'Error al actualizar configuración.', error: error.message });
+      res.status(500).json({
+        mensaje: 'Error al actualizar configuración.',
+        error: error.message
+      });
     }
   }
 };

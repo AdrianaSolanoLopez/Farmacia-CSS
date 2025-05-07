@@ -20,3 +20,7 @@ app.use('/api', router);
 app.use(errorHandler);
 
 export default app; // Export the app instance as default
+
+import configuracionRoutes from './routes/configuracionRoutes.js';
+app.use('/api/configuracion', configuracionRoutes);
+

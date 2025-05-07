@@ -1,5 +1,5 @@
 // src/controllers/ajusteInventarioController.js
-import { pool } from '../db.js'; // Asegúrate de que esta ruta esté correcta
+import sql, { pool } from '../config/db.js'; // Importar conexión y tipo SQL
 
 // Obtener todos los ajustes de inventario
 export const obtenerAjustes = async (req, res) => {
@@ -27,9 +27,10 @@ export const registrarAjuste = async (req, res) => {
 
   try {
     const request = pool.request();
-    request.input('productoId', productoId);
-    request.input('cantidad', cantidad);
-    request.input('motivo', motivo);
+    request.input('productoId', sql.Int, productoId);
+    request.input('cantidad', sql.Int, cantidad);
+    request.input('motivo', sql.VarChar, motivo);
+
     await request.query(`
       INSERT INTO AjustesInventario (productoId, cantidad, motivo, fecha)
       VALUES (@productoId, @cantidad, @motivo, GETDATE());
