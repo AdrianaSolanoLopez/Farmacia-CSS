@@ -1,5 +1,4 @@
 // src/routes/configuracionRoutes.js
-
 import express from 'express';
 import * as configuracionController from '../controllers/configuracionController.js';
 

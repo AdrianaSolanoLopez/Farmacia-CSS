@@ -1,64 +1,60 @@
 // src/controllers/configuracionController.js
-
-import sql from 'mssql';
-import { pool } from '../config/db.js'; // ✅ Corrección aquí
+import { pool } from '../config/db.js';  // Ajusta si tu ruta es diferente
 
 const configuracionController = {
-  // Obtener la configuración actual del sistema
+  // Obtener configuración del sistema
   obtenerConfiguracion: async (req, res) => {
     try {
-      const resultado = await pool.request().query('SELECT * FROM ConfiguracionSistema');
+      // Obtenemos todas las configuraciones de la tabla
+      const result = await pool.request().query('SELECT * FROM ConfiguracionSistema');
 
-      if (resultado.recordset.length === 0) {
+      // Verificamos si hay datos
+      if (result.recordset.length === 0) {
         return res.status(404).json({ mensaje: 'No se encontró configuración registrada.' });
       }
 
-      res.status(200).json(resultado.recordset[0]);
+      // Devolvemos la configuración
+      res.json(result.recordset);
     } catch (error) {
       console.error('Error al obtener configuración:', error);
-      res.status(500).json({
-        mensaje: 'Error al obtener configuración.',
-        error: error.message
-      });
+      res.status(500).json({ mensaje: 'Error al obtener configuración.', error: error.message });
     }
   },
 
   // Actualizar la configuración del sistema
   actualizarConfiguracion: async (req, res) => {
-    const { alertaDiasVencimiento, porcentajeIVA } = req.body;
+    const { clave, valor } = req.body;
 
-    // Validaciones básicas
-    if (
-      typeof alertaDiasVencimiento !== 'number' || alertaDiasVencimiento < 0 ||
-      typeof porcentajeIVA !== 'number' || porcentajeIVA < 0
-    ) {
-      return res.status(400).json({
-        mensaje: 'Los valores de alertaDiasVencimiento y porcentajeIVA deben ser números válidos y mayores o iguales a cero.'
-      });
+    // Validamos que se haya enviado una clave y un valor
+    if (!clave || !valor) {
+      return res.status(400).json({ mensaje: 'Se requiere clave y valor para actualizar la configuración.' });
     }
 
     try {
-      await pool.request()
-        .input('alertaDiasVencimiento', sql.Int, alertaDiasVencimiento)
-        .input('porcentajeIVA', sql.Decimal(5, 2), porcentajeIVA)
+      // Actualizamos el valor de la clave en la tabla
+      const result = await pool.request()
+        .input('clave', clave)
+        .input('valor', valor)
         .query(`
           UPDATE ConfiguracionSistema 
-          SET alerta_dias_vencimiento = @alertaDiasVencimiento, 
-              porcentaje_iva = @porcentajeIVA
+          SET valor = @valor 
+          WHERE clave = @clave
         `);
 
-      const configActualizada = await pool.request().query('SELECT * FROM ConfiguracionSistema');
+      // Verificamos si la clave fue actualizada
+      if (result.rowsAffected[0] === 0) {
+        return res.status(404).json({ mensaje: 'No se encontró la configuración para la clave proporcionada.' });
+      }
 
-      res.status(200).json({
+      // Obtenemos la configuración actualizada
+      const configActualizada = await pool.request().query('SELECT * FROM ConfiguracionSistema');
+      res.json({
         mensaje: 'Configuración actualizada con éxito.',
-        configuracion: configActualizada.recordset[0]
+        configuracion: configActualizada.recordset
       });
     } catch (error) {
       console.error('Error al actualizar configuración:', error);
-      res.status(500).json({
-        mensaje: 'Error al actualizar configuración.',
-        error: error.message
-      });
+      res.status(500).json({ mensaje: 'Error al actualizar configuración.', error: error.message });
     }
   }
 };
