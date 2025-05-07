@@ -29,10 +29,19 @@ pool.on('error', (err) => {
   console.error('Error en el pool de la base de datos:', err);
 });
 
+// Asegurarse de que la conexión se haya establecido antes de continuar
+poolConnect
+  .then(() => {
+    console.log('Conexión establecida con éxito');
+  })
+  .catch((err) => {
+    console.error('Error al conectar con la base de datos:', err);
+  });
+
 // Función para ejecutar procedimientos almacenados
 export async function executeStoredProcedure(procedureName, params = []) {
   try {
-    await poolConnect; // Esperamos la conexión
+    await poolConnect; // Esperamos a que la conexión se haya establecido
     const request = pool.request();
 
     // Agregar parámetros al request
