@@ -1,12 +1,28 @@
-// src/routes/ordenCompraRoutes.js
 import express from 'express';
-const router = express.Router();
-import * as ordenCompraController from '../controllers/ordenCompraController.js';
+import {
+  registrarOrdenCompra,
+  obtenerOrdenesCompra,
+  obtenerOrdenPorId,
+  actualizarOrdenCompra,
+  eliminarOrdenCompra
+} from '../controllers/ordenCompraController.js';
+import { validarOrdenCompra } from '../../middlewares/validacionOrdenCompra.js';
 
-router.get('/', ordenCompraController.obtenerOrdenesCompra);
-router.get('/:id', ordenCompraController.obtenerOrdenPorId);
-router.post('/', ordenCompraController.registrarOrdenCompra);
-//router.put('/:id', ordenCompraController.actualizarOrdenCompra);
-//router.delete('/:id', ordenCompraController.eliminarOrdenCompra);
+const router = express.Router();
+
+// GET /api/ordenes-compra
+router.get('/', obtenerOrdenesCompra);
+
+// GET /api/ordenes-compra/:id
+router.get('/:id', obtenerOrdenPorId);
+
+// POST /api/ordenes-compra
+router.post('/', validarOrdenCompra, registrarOrdenCompra);
+
+// PUT /api/ordenes-compra/:id
+router.put('/:id', actualizarOrdenCompra);
+
+// DELETE /api/ordenes-compra/:id
+router.delete('/:id', eliminarOrdenCompra);
 
 export default router;

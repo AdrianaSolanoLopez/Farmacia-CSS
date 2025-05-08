@@ -11,7 +11,7 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT),
   options: {
     encrypt: false,
-    trustServerCertificate: true,
+    trustServerCertificate: true, // Solo para desarrollo
   },
   pool: {
     max: 10,
@@ -20,45 +20,47 @@ const dbConfig = {
   },
 };
 
-// Crear el pool de conexiones
-const pool = new sql.ConnectionPool(dbConfig);
-const poolConnect = pool.connect(); // Esto retorna una promesa
+// Singleton del pool de conexiones
+let pool;
+let poolConnect;
 
-// Manejo de errores del pool
-pool.on('error', (err) => {
-  console.error('Error en el pool de la base de datos:', err);
-});
+export async function getPool() {
+  if (!pool) {
+    pool = new sql.ConnectionPool(dbConfig);
+    poolConnect = pool.connect();
 
-// Asegurarse de que la conexión se haya establecido antes de continuar
-poolConnect
-  .then(() => {
-    console.log('Conexión establecida con éxito');
-  })
-  .catch((err) => {
-    console.error('Error al conectar con la base de datos:', err);
-  });
-
-// Función para ejecutar procedimientos almacenados
-export async function executeStoredProcedure(procedureName, params = []) {
-  try {
-    await poolConnect; // Esperamos a que la conexión se haya establecido
-    const request = pool.request();
-
-    // Agregar parámetros al request
-    params.forEach((param) => {
-      request.input(param.name, param.type, param.value);
+    pool.on('error', err => {
+      console.error('Database pool error:', err);
     });
 
-    const result = await request.execute(procedureName);
-    return result;
-  } catch (error) {
-    console.error(`Error al ejecutar el procedimiento almacenado ${procedureName}:`, error);
-    throw error;
+    try {
+      await poolConnect;
+      console.log('Connected to SQL Server');
+    } catch (err) {
+      console.error('Database connection failed:', err);
+      throw err;
+    }
   }
+  return pool;
 }
 
-// Exportar pool para su uso en otros archivos
-export { pool };
+// Versión mejorada de executeStoredProcedure
+export async function executeQuery(query, params = []) {
+  const pool = await getPool();
+  const request = pool.request();
 
-// Exportar el objeto `sql` si lo necesitas para otras consultas
-export default sql;
+  params.forEach(param => {
+    request.input(param.name, param.type || sql.VarChar, param.value);
+  });
+
+  return await request.query(query);
+}
+
+
+export async function executeInsert(query, params) {
+  const result = await executeQuery(query, params);
+  return result.rowsAffected[0];
+}
+
+// Exportaciones
+export { sql };

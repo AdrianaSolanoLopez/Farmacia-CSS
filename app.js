@@ -13,13 +13,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Use centralized routes
+// Rutas
 app.use('/api', router);
 
-// Error handling
+// Manejo de errores
 app.use(errorHandler);
 
-export default app; // Export the app instance as default
-
-
-
+export default app;

@@ -1,12 +1,17 @@
-// src/routes/consultasClientesRoutes.js
 import express from 'express';
+import {
+  obtenerClientePorDocumento,
+  historialCompras,
+  historialDevoluciones
+} from '../controllers/consultasClientesController.js';
+
 const router = express.Router();
-import * as consultasClientesController from '../controllers/consultasClientesController.js';
 
-// Consulta de ventas por cliente
-router.get('/ventas/:clienteId', consultasClientesController.obtenerVentasPorCliente);
+// Documento debe ser string (cédula/nit/pasaporte)
+router.get('/documento/:documento', obtenerClientePorDocumento);
 
-// Consulta de devoluciones por cliente
-router.get('/devoluciones/:clienteId', consultasClientesController.obtenerDevolucionesPorCliente);
+// ID debe ser numérico
+router.get('/:clienteId/compras', historialCompras);
+router.get('/:clienteId/devoluciones', historialDevoluciones);
 
 export default router;

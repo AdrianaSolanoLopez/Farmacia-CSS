@@ -1,12 +1,26 @@
-// src/routes/proveedorRoutes.js
 import express from 'express';
 const router = express.Router();
-import * as proveedorController from '../controllers/ProveedorController.js';
+import {
+  obtenerProveedores,
+  obtenerProveedor,
+  crearProveedor,
+  actualizarProveedor,
+  eliminarProveedor
+} from '../controllers/ProveedorController.js';
 
-router.get('/', proveedorController.obtenerProveedores);
-router.get('/:id', proveedorController.obtenerProveedor);
-router.post('/', proveedorController.crearProveedor);
-router.put('/:id', proveedorController.actualizarProveedor);
-router.delete('/:id', proveedorController.eliminarProveedor);
+// Obtener listado de proveedores (con paginación y búsqueda)
+router.get('/', obtenerProveedores);
+
+// Obtener un proveedor específico
+router.get('/:id', obtenerProveedor);
+
+// Crear un nuevo proveedor
+router.post('/', crearProveedor);
+
+// Actualizar información de proveedor
+router.put('/:id', actualizarProveedor);
+
+// Desactivar proveedor (eliminación lógica)
+router.delete('/:id', eliminarProveedor);
 
 export default router;

@@ -1,134 +1,421 @@
-//1. Controlador: Productos y Lotes------------
-//Lógica básica para:Crear un producto, Obtener todos los productos
-//Obtener un producto por ID, Actualizar un producto, Eliminar (desactivar) un producto
-//Crear un lote para un producto, Obtener todos los lotes de un producto
-//Verificar productos con lotes próximos a vencer.
+import { executeQuery, sql, getPool } from '../config/db.js';
+import moment from 'moment';
 
-// productoControler
+export const createProduct = async (req, res) => {
+  const {
+    nombre,
+    descripcion,
+    codigo_barras,
+    unidad_medida,
+    precio_compra,
+    precio_venta,
+    stock_minimo,
+    proveedor_id,
+    categoria_id
+  } = req.body;
 
-const db = require('../config/db.js'); // o tu conexión pool a SQL Server
-const moment = require('moment');
-
-// Crear un producto
-exports.createProduct = async (req, res) => {
-  const { nombre, descripcion, unidad_medida, precio_compra, precio_venta, stock_minimo, proveedor_id } = req.body;
-  try {
-    await db.query(`
-      INSERT INTO Productos (nombre, descripcion, unidad_medida, precio_compra, precio_venta, stock_minimo, proveedor_id)
-      VALUES (@nombre, @descripcion, @unidad_medida, @precio_compra, @precio_venta, @stock_minimo, @proveedor_id)
-    `, {
-      nombre, descripcion, unidad_medida, precio_compra, precio_venta, stock_minimo, proveedor_id
+  // Validaciones
+  if (!nombre || !unidad_medida || !precio_venta || precio_venta <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Datos incompletos o inválidos',
+      requiredFields: ['nombre', 'unidad_medida', 'precio_venta']
     });
-
-    res.status(201).json({ message: 'Producto creado correctamente.' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
-};
-
-// Obtener todos los productos
-exports.getAllProducts = async (req, res) => {
-  try {
-    const result = await db.query('SELECT * FROM Productos WHERE estado = 1');
-    res.json(result.recordset);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Obtener un producto por ID
-exports.getProductById = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await db.query('SELECT * FROM Productos WHERE id = @id', { id });
-    res.json(result.recordset[0]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Actualizar un producto
-exports.updateProduct = async (req, res) => {
-  const { id } = req.params;
-  const { nombre, descripcion, unidad_medida, precio_compra, precio_venta, stock_minimo, proveedor_id } = req.body;
 
   try {
-    await db.query(`
-      UPDATE Productos
-      SET nombre = @nombre, descripcion = @descripcion, unidad_medida = @unidad_medida,
-          precio_compra = @precio_compra, precio_venta = @precio_venta, stock_minimo = @stock_minimo,
-          proveedor_id = @proveedor_id
-      WHERE id = @id
-    `, {
-      id, nombre, descripcion, unidad_medida, precio_compra, precio_venta, stock_minimo, proveedor_id
+    const result = await executeQuery(
+      `INSERT INTO Productos 
+       (nombre, descripcion, codigo_barras, unidad_medida, precio_compra, precio_venta, stock_minimo, proveedor_id, categoria_id, estado)
+       OUTPUT INSERTED.id
+       VALUES (@nombre, @descripcion, @codigo_barras, @unidad_medida, @precio_compra, @precio_venta, @stock_minimo, @proveedor_id, @categoria_id, 1)`,
+      [
+        { name: 'nombre', value: nombre, type: sql.NVarChar(100) },
+        { name: 'descripcion', value: descripcion || null, type: sql.NVarChar(500) },
+        { name: 'codigo_barras', value: codigo_barras || null, type: sql.NVarChar(50) },
+        { name: 'unidad_medida', value: unidad_medida, type: sql.NVarChar(20) },
+        { name: 'precio_compra', value: precio_compra || 0, type: sql.Decimal(10, 2) },
+        { name: 'precio_venta', value: precio_venta, type: sql.Decimal(10, 2) },
+        { name: 'stock_minimo', value: stock_minimo || 0, type: sql.Int },
+        { name: 'proveedor_id', value: proveedor_id || null, type: sql.Int },
+        { name: 'categoria_id', value: categoria_id || null, type: sql.Int }
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Producto creado correctamente',
+      data: {
+        id: result.recordset[0].id,
+        nombre,
+        codigo_barras: codigo_barras || null
+      }
     });
-
-    res.json({ message: 'Producto actualizado correctamente.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Eliminar (desactivar) un producto
-exports.deleteProduct = async (req, res) => {
-  const { id } = req.params;
-  try {
-    await db.query('UPDATE Productos SET estado = 0 WHERE id = @id', { id });
-    res.json({ message: 'Producto eliminado correctamente.' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Crear lote para producto
-exports.createLote = async (req, res) => {
-  const { producto_id, numero_lote, fecha_vencimiento, cantidad } = req.body;
-  try {
-    await db.query(`
-      INSERT INTO Lotes (producto_id, numero_lote, fecha_vencimiento, cantidad_disponible)
-      VALUES (@producto_id, @numero_lote, @fecha_vencimiento, @cantidad)
-    `, {
-      producto_id,
-      numero_lote,
-      fecha_vencimiento: moment(fecha_vencimiento).format('YYYY-MM-DD'),
-      cantidad
+    console.error('Error en createProduct:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al crear producto',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
-
-    res.status(201).json({ message: 'Lote creado correctamente.' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
   }
 };
 
-// Obtener todos los lotes de un producto
-exports.getLotesByProductId = async (req, res) => {
+export const getAllProducts = async (req, res) => {
+  try {
+    const { categoria_id, proveedor_id, con_stock } = req.query;
+
+    const whereConditions = ['p.estado = 1'];
+    const params = [];
+
+    if (categoria_id) {
+      whereConditions.push('p.categoria_id = @categoria_id');
+      params.push({ name: 'categoria_id', value: categoria_id, type: sql.Int });
+    }
+
+    if (proveedor_id) {
+      whereConditions.push('p.proveedor_id = @proveedor_id');
+      params.push({ name: 'proveedor_id', value: proveedor_id, type: sql.Int });
+    }
+
+    if (con_stock === 'true') {
+      whereConditions.push('(SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) > 0');
+    }
+
+    const result = await executeQuery(`
+      SELECT 
+        p.id,
+        p.nombre,
+        p.descripcion,
+        p.codigo_barras,
+        p.unidad_medida,
+        p.precio_compra,
+        p.precio_venta,
+        p.stock_minimo,
+        (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) AS stock_actual,
+        pr.nombre AS proveedor,
+        c.nombre AS categoria,
+        CASE 
+          WHEN (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) <= p.stock_minimo THEN 'CRITICO'
+          WHEN (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) <= p.stock_minimo * 1.5 THEN 'ALERTA'
+          ELSE 'NORMAL'
+        END AS estado_stock
+      FROM Productos p
+      LEFT JOIN Proveedores pr ON p.proveedor_id = pr.id
+      LEFT JOIN Categorias c ON p.categoria_id = c.id
+      WHERE ${whereConditions.join(' AND ')}
+      ORDER BY p.nombre
+    `, params);
+
+    res.json({
+      success: true,
+      data: result.recordset,
+      meta: {
+        total: result.recordset.length,
+        filters: {
+          categoria_id,
+          proveedor_id,
+          con_stock
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error en getAllProducts:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener productos'
+    });
+  }
+};
+
+export const getProductById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await executeQuery(`
+      SELECT 
+        p.*,
+        pr.nombre AS proveedor,
+        c.nombre AS categoria,
+        (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) AS stock_actual
+      FROM Productos p
+      LEFT JOIN Proveedores pr ON p.proveedor_id = pr.id
+      LEFT JOIN Categorias c ON p.categoria_id = c.id
+      WHERE p.id = @id
+    `, [{ name: 'id', value: id, type: sql.Int }]);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.recordset[0]
+    });
+  } catch (error) {
+    console.error('Error en getProductById:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener producto'
+    });
+  }
+};
+
+export const updateProduct = async (req, res) => {
+  const { id } = req.params;
+  const {
+    nombre,
+    descripcion,
+    codigo_barras,
+    unidad_medida,
+    precio_compra,
+    precio_venta,
+    stock_minimo,
+    proveedor_id,
+    categoria_id
+  } = req.body;
+
+  try {
+    // Verificar que el producto existe
+    const producto = await executeQuery(
+      'SELECT id FROM Productos WHERE id = @id',
+      [{ name: 'id', value: id, type: sql.Int }]
+    );
+
+    if (producto.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado'
+      });
+    }
+
+    // Actualizar producto
+    await executeQuery(
+      `UPDATE Productos SET
+        nombre = @nombre,
+        descripcion = @descripcion,
+        codigo_barras = @codigo_barras,
+        unidad_medida = @unidad_medida,
+        precio_compra = @precio_compra,
+        precio_venta = @precio_venta,
+        stock_minimo = @stock_minimo,
+        proveedor_id = @proveedor_id,
+        categoria_id = @categoria_id
+       WHERE id = @id`,
+      [
+        { name: 'nombre', value: nombre, type: sql.NVarChar(100) },
+        { name: 'descripcion', value: descripcion || null, type: sql.NVarChar(500) },
+        { name: 'codigo_barras', value: codigo_barras || null, type: sql.NVarChar(50) },
+        { name: 'unidad_medida', value: unidad_medida, type: sql.NVarChar(20) },
+        { name: 'precio_compra', value: precio_compra || 0, type: sql.Decimal(10, 2) },
+        { name: 'precio_venta', value: precio_venta, type: sql.Decimal(10, 2) },
+        { name: 'stock_minimo', value: stock_minimo || 0, type: sql.Int },
+        { name: 'proveedor_id', value: proveedor_id || null, type: sql.Int },
+        { name: 'categoria_id', value: categoria_id || null, type: sql.Int },
+        { name: 'id', value: id, type: sql.Int }
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: 'Producto actualizado correctamente',
+      data: { id }
+    });
+  } catch (error) {
+    console.error('Error en updateProduct:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar producto'
+    });
+  }
+};
+
+export const deleteProduct = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Verificar si el producto tiene stock
+    const stock = await executeQuery(
+      `SELECT SUM(cantidad_disponible) AS stock 
+       FROM Lotes 
+       WHERE producto_id = @id
+       GROUP BY producto_id`,
+      [{ name: 'id', value: id, type: sql.Int }]
+    );
+
+    const stockActual = stock.recordset[0]?.stock || 0;
+    if (stockActual > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No se puede eliminar un producto con stock disponible',
+        stock_actual: stockActual
+      });
+    }
+
+    // Desactivar producto (eliminación lógica)
+    const result = await executeQuery(
+      'UPDATE Productos SET estado = 0 WHERE id = @id',
+      [{ name: 'id', value: id, type: sql.Int }]
+    );
+
+    if (result.rowsAffected[0] === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Producto desactivado correctamente',
+      data: { id }
+    });
+  } catch (error) {
+    console.error('Error en deleteProduct:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al desactivar producto'
+    });
+  }
+};
+
+export const createLote = async (req, res) => {
   const { producto_id } = req.params;
-  try {
-    const result = await db.query(`
-      SELECT * FROM Lotes WHERE producto_id = @producto_id AND cantidad_disponible > 0
-    `, { producto_id });
+  const { numero_lote, fecha_vencimiento, cantidad } = req.body;
 
-    res.json(result.recordset);
+  // Validaciones
+  if (!numero_lote || !fecha_vencimiento || !cantidad || cantidad <= 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Datos incompletos o inválidos',
+      requiredFields: ['numero_lote', 'fecha_vencimiento', 'cantidad']
+    });
+  }
+
+  try {
+    // Verificar que el producto existe
+    const producto = await executeQuery(
+      'SELECT id FROM Productos WHERE id = @producto_id AND estado = 1',
+      [{ name: 'producto_id', value: producto_id, type: sql.Int }]
+    );
+
+    if (producto.recordset.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Producto no encontrado o inactivo'
+      });
+    }
+
+    // Insertar lote
+    const result = await executeQuery(
+      `INSERT INTO Lotes 
+       (producto_id, numero_lote, fecha_vencimiento, cantidad_disponible)
+       OUTPUT INSERTED.id
+       VALUES (@producto_id, @numero_lote, @fecha_vencimiento, @cantidad)`,
+      [
+        { name: 'producto_id', value: producto_id, type: sql.Int },
+        { name: 'numero_lote', value: numero_lote, type: sql.NVarChar(50) },
+        { name: 'fecha_vencimiento', value: new Date(fecha_vencimiento), type: sql.Date },
+        { name: 'cantidad', value: cantidad, type: sql.Decimal(10, 2) }
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Lote creado correctamente',
+      data: {
+        id: result.recordset[0].id,
+        producto_id,
+        numero_lote
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error en createLote:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al crear lote',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
-// Obtener productos con lotes próximos a vencer
-exports.getLotesPorVencer = async (req, res) => {
-  try {
-    const hoy = moment().format('YYYY-MM-DD');
-    const en30Dias = moment().add(30, 'days').format('YYYY-MM-DD');
+export const getLotesByProductId = async (req, res) => {
+  const { producto_id } = req.params;
 
-    const result = await db.query(`
-      SELECT p.nombre AS producto, l.numero_lote, l.fecha_vencimiento, l.cantidad_disponible
+  try {
+    const result = await executeQuery(`
+      SELECT 
+        id,
+        numero_lote,
+        FORMAT(fecha_vencimiento, 'yyyy-MM-dd') AS fecha_vencimiento,
+        cantidad_disponible,
+        DATEDIFF(DAY, GETDATE(), fecha_vencimiento) AS dias_restantes,
+        CASE 
+          WHEN fecha_vencimiento <= DATEADD(DAY, 30, GETDATE()) THEN 'PRONTO_A_VENCER'
+          ELSE 'VIGENTE'
+        END AS estado_lote
+      FROM Lotes
+      WHERE producto_id = @producto_id
+        AND cantidad_disponible > 0
+      ORDER BY fecha_vencimiento ASC
+    `, [{ name: 'producto_id', value: producto_id, type: sql.Int }]);
+
+    res.json({
+      success: true,
+      data: result.recordset,
+      meta: {
+        producto_id,
+        total_lotes: result.recordset.length,
+        stock_total: result.recordset.reduce((sum, lote) => sum + lote.cantidad_disponible, 0)
+      }
+    });
+  } catch (error) {
+    console.error('Error en getLotesByProductId:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener lotes del producto'
+    });
+  }
+};
+
+export const getLotesPorVencer = async (req, res) => {
+  try {
+    const { dias = 30 } = req.query;
+    const fechaLimite = moment().add(dias, 'days').toDate();
+
+    const result = await executeQuery(`
+      SELECT 
+        p.id AS producto_id,
+        p.nombre AS producto,
+        l.id AS lote_id,
+        l.numero_lote,
+        FORMAT(l.fecha_vencimiento, 'yyyy-MM-dd') AS fecha_vencimiento,
+        l.cantidad_disponible,
+        DATEDIFF(DAY, GETDATE(), l.fecha_vencimiento) AS dias_restantes
       FROM Lotes l
       JOIN Productos p ON l.producto_id = p.id
-      WHERE l.fecha_vencimiento BETWEEN @hoy AND @en30Dias AND l.cantidad_disponible > 0
-    `, { hoy, en30Dias });
+      WHERE l.fecha_vencimiento BETWEEN GETDATE() AND @fechaLimite
+        AND l.cantidad_disponible > 0
+      ORDER BY l.fecha_vencimiento ASC
+    `, [{ name: 'fechaLimite', value: fechaLimite, type: sql.Date }]);
 
-    res.json(result.recordset);
+    res.json({
+      success: true,
+      data: result.recordset,
+      meta: {
+        total: result.recordset.length,
+        dias_analizados: dias,
+        fecha_limite: fechaLimite
+      }
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error en getLotesPorVencer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener lotes próximos a vencer'
+    });
   }
 };

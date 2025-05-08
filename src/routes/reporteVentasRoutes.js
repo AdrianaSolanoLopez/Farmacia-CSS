@@ -1,12 +1,18 @@
-// src/routes/reporteVentasRoutes.js
 import express from 'express';
 const router = express.Router();
-import * as reporteVentasController from '../controllers/reporteVentasController.js';
+import {
+  getVentasPorFecha,
+  getDetalleVenta,
+  getTopProductos
+} from '../controllers/reporteVentasController.js';
 
-// Cabecera de ventas
-router.post('/rango', reporteVentasController.getVentasPorFecha);
+// Reporte completo de ventas por rango de fechas
+router.post('/ventas/rango', getVentasPorFecha);
 
-// Detalle por venta específica
-router.get('/detalle/:venta_id', reporteVentasController.getDetalleVenta);
+// Detalle de una venta específica
+router.get('/ventas/detalle/:venta_id', getDetalleVenta);
+
+// Top 10 productos más vendidos en un rango
+router.post('/ventas/top-productos', getTopProductos);
 
 export default router;

@@ -1,15 +1,19 @@
-// src/routes/clienteRoutes.js
-
 import express from 'express';
-import ClienteController from '../controllers/clienteController.js';  // Asegúrate de importar correctamente el controlador
+import {
+  crearCliente,
+  obtenerClientes,
+  obtenerClientePorId,
+  actualizarCliente,
+  eliminarCliente
+} from '../controllers/clienteController.js';
 
 const router = express.Router();
 
-// Rutas de los clientes
-router.get('/', ClienteController.obtenerClientes);
-router.get('/:id', ClienteController.obtenerClientePorId);
-router.post('/', ClienteController.crearCliente);
-router.put('/:id', ClienteController.actualizarCliente);
-router.delete('/:id', ClienteController.eliminarCliente);
+// Ruta base: /api/clientes (definido en app.js)
+router.get('/', obtenerClientes);          // GET /api/clientes?estado=activo
+router.get('/:id', obtenerClientePorId);   // GET /api/clientes/123
+router.post('/', crearCliente);            // POST /api/clientes
+router.put('/:id', actualizarCliente);     // PUT /api/clientes/123
+router.delete('/:id', eliminarCliente);    // DELETE /api/clientes/123
 
 export default router;

@@ -1,10 +1,25 @@
-// src/routes/recepcionRoutes.js
 import express from 'express';
-const router = express.Router();
-import * as recepcionController from '../controllers/recepcionController.js';
+import {
+  obtenerRecepciones,
+  obtenerRecepcionPorId,
+  registrarRecepcion,
+  createActa,
+  addProductsToActa,
+  searchProduct,
+  loadActaToInventory
+} from '../controllers/recepcionController.js';
 
-//router.get('/', recepcionController.obtenerRecepciones);
-//router.get('/:id', recepcionController.obtenerRecepcionPorId);
-//router.post('/', recepcionController.registrarRecepcion);
+const router = express.Router();
+
+// Rutas básicas
+router.get('/', obtenerRecepciones);
+router.get('/:id', obtenerRecepcionPorId);
+router.post('/', registrarRecepcion);
+
+// Rutas específicas para funcionalidades
+router.post('/acta', createActa);
+router.post('/productos', addProductsToActa);
+router.get('/productos/buscar', searchProduct);
+router.post('/inventario', loadActaToInventory);
 
 export default router;

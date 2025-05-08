@@ -1,15 +1,24 @@
-// src/routes/inventarioRoutes.js
 import express from 'express';
+import {
+  getStockActual,
+  getStockByProductoId,
+  ajustarInventario,
+  getHistorialAjustes
+} from '../controllers/inventarioController.js';
+import { validarAjusteInventario } from '../../middlewares/validacionInventario.js';
+
 const router = express.Router();
-import * as inventarioController from '../controllers/inventarioController.js';
 
-// Obtener inventario general
-router.get('/', inventarioController.getStockActual);
+// GET /api/inventario
+router.get('/', getStockActual);
 
-// Obtener inventario por producto
-router.get('/producto/:id', inventarioController.getStockByProductoId);
+// GET /api/inventario/producto/:id
+router.get('/producto/:id', getStockByProductoId);
 
-// Actualizar stock manualmente (por ejemplo para ajustes)
-router.put('/actualizar-stock/:id', inventarioController.ajustarInventario);
+// POST /api/inventario/ajustes
+router.post('/ajustes', validarAjusteInventario, ajustarInventario);
+
+// GET /api/inventario/ajustes/historial
+router.get('/ajustes/historial', getHistorialAjustes);
 
 export default router;

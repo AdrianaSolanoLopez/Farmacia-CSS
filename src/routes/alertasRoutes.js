@@ -1,10 +1,15 @@
-// src/routes/alertasRoutes.js
 import express from 'express';
-import { obtenerAlertas } from '../controllers/alertasController.js';  // Asegúrate de que esta función esté exportada
+import {
+  obtenerAlertas,
+  obtenerAlertasBajoStock
+} from '../controllers/alertasController.js';
 
 const router = express.Router();
 
-// Verifica que la función `obtenerAlertas` esté definida en el controlador
-router.get('/alertas', obtenerAlertas);
+// GET /api/alertas/vencimiento
+router.get('/vencimiento', obtenerAlertas);
+
+// GET /api/alertas/stock?nivel=5 (parámetro opcional)
+router.get('/stock', obtenerAlertasBajoStock);
 
 export default router;

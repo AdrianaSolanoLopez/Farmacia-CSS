@@ -1,86 +1,193 @@
-//8. Controlador: Reportes de Ventas por Fecha
-//Este módulo permite consultar las ventas realizadas en un rango de fechas, con el objetivo de generar reportes para toma de decisiones.
-//este controlador Obtiene todas las ventas entre dos fechas, Mostrar totales por venta y por día
-//Incluir detalles como productos vendidos, cantidades, precios, etc.
+import { executeQuery, sql } from '../config/db.js';
+import AppError from '../utils/AppError.js';
 
-const db = require('../config/db');
-
-// Reporte de ventas por rango de fechas
-exports.getVentasPorFecha = async (req, res) => {
+/**
+ * Obtiene todas las ventas entre dos fechas con sus totales
+ * @param {Date} fecha_inicio - Fecha de inicio del reporte (YYYY-MM-DD)
+ * @param {Date} fecha_fin - Fecha de fin del reporte (YYYY-MM-DD)
+ * @returns {Object} - Objeto con ventas, totales y metadatos
+ */
+export const getVentasPorFecha = async (req, res, next) => {
   const { fecha_inicio, fecha_fin } = req.body;
 
-  // Validación de fechas
+  // Validación de parámetros
   if (!fecha_inicio || !fecha_fin) {
-    return res.status(400).json({ mensaje: 'Las fechas de inicio y fin son requeridas' });
+    return next(new AppError('Las fechas de inicio y fin son requeridas', 400));
   }
 
-  const isValidDate = (date) => !isNaN(Date.parse(date));
-  if (!isValidDate(fecha_inicio) || !isValidDate(fecha_fin)) {
-    return res.status(400).json({ mensaje: 'Fechas inválidas' });
+  // Validar formato de fecha (YYYY-MM-DD)
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(fecha_inicio) || !dateRegex.test(fecha_fin)) {
+    return next(new AppError('Formato de fecha inválido. Use YYYY-MM-DD', 400));
   }
 
   try {
-    const ventas = await db.query(`
-      SELECT V.id AS venta_id, V.fecha_venta, V.total_venta, V.tipo_pago, 
-             C.nombre AS cliente, U.nombre AS usuario
+    // 1. Obtener cabeceras de ventas
+    const ventas = await executeQuery(
+      `SELECT 
+        V.id AS venta_id, 
+        FORMAT(V.fecha_venta, 'yyyy-MM-dd HH:mm') AS fecha_venta,
+        V.total_venta, 
+        V.tipo_pago, 
+        C.nombre AS cliente, 
+        U.nombre AS usuario
       FROM Ventas V
       LEFT JOIN Clientes C ON V.cliente_id = C.id
       JOIN Usuarios U ON V.usuario_id = U.id
       WHERE V.fecha_venta BETWEEN @fecha_inicio AND @fecha_fin
-      ORDER BY V.fecha_venta DESC
-    `, { fecha_inicio, fecha_fin });
+      ORDER BY V.fecha_venta DESC`,
+      [
+        { name: 'fecha_inicio', type: sql.Date, value: fecha_inicio },
+        { name: 'fecha_fin', type: sql.Date, value: fecha_fin }
+      ]
+    );
 
-    // Verificar si se encontraron ventas
-    if (!ventas.recordset || ventas.recordset.length === 0) {
-      return res.status(404).json({ mensaje: 'No se encontraron ventas en el rango de fechas especificado' });
+    if (!ventas.recordset?.length) {
+      return next(new AppError('No se encontraron ventas en el rango especificado', 404));
     }
 
-    res.json({
+    // 2. Obtener totales por día
+    const totalesPorDia = await executeQuery(
+      `SELECT 
+        FORMAT(V.fecha_venta, 'yyyy-MM-dd') AS fecha,
+        COUNT(V.id) AS cantidad_ventas,
+        SUM(V.total_venta) AS total_dia,
+        SUM(CASE WHEN V.tipo_pago = 'efectivo' THEN V.total_venta ELSE 0 END) AS total_efectivo,
+        SUM(CASE WHEN V.tipo_pago = 'tarjeta' THEN V.total_venta ELSE 0 END) AS total_tarjeta
+      FROM Ventas V
+      WHERE V.fecha_venta BETWEEN @fecha_inicio AND @fecha_fin
+      GROUP BY FORMAT(V.fecha_venta, 'yyyy-MM-dd')
+      ORDER BY fecha`,
+      [
+        { name: 'fecha_inicio', type: sql.Date, value: fecha_inicio },
+        { name: 'fecha_fin', type: sql.Date, value: fecha_fin }
+      ]
+    );
+
+    // 3. Calcular total general
+    const totalGeneral = ventas.recordset.reduce((sum, venta) => sum + venta.total_venta, 0);
+
+    res.status(200).json({
       success: true,
-      message: 'Ventas obtenidas exitosamente',
-      data: ventas.recordset
+      data: {
+        ventas: ventas.recordset,
+        totales_por_dia: totalesPorDia.recordset,
+        resumen: {
+          total_ventas: ventas.recordset.length,
+          total_general: totalGeneral.toFixed(2),
+          dias: totalesPorDia.recordset.length
+        }
+      },
+      meta: {
+        fecha_inicio,
+        fecha_fin,
+        generated_at: new Date().toISOString()
+      }
     });
+
   } catch (error) {
-    console.error('Error al obtener las ventas:', error);
-    res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
+    console.error('Error en getVentasPorFecha:', error);
+    next(new AppError('Error al generar el reporte de ventas', 500));
   }
 };
 
-// Detalle de productos vendidos en una venta
-exports.getDetalleVenta = async (req, res) => {
+/**
+ * Obtiene el detalle completo de una venta específica
+ * @param {number} venta_id - ID de la venta a consultar
+ * @returns {Array} - Lista de productos vendidos con sus detalles
+ */
+export const getDetalleVenta = async (req, res, next) => {
   const { venta_id } = req.params;
 
-  // Validación de venta_id
-  if (!venta_id || isNaN(venta_id)) {
-    return res.status(400).json({ mensaje: 'ID de venta inválido' });
+  // Validar que venta_id sea un número
+  if (!venta_id || isNaN(parseInt(venta_id))) {
+    return next(new AppError('ID de venta inválido', 400));
   }
 
   try {
-    const detalles = await db.query(`
-      SELECT DV.producto_id, P.nombre, DV.cantidad, DV.precio_unitario, DV.subtotal
+    // 1. Obtener cabecera de la venta
+    const cabecera = await executeQuery(
+      `SELECT 
+        V.id, 
+        FORMAT(V.fecha_venta, 'yyyy-MM-dd HH:mm') AS fecha_venta,
+        V.total_venta,
+        V.tipo_pago,
+        C.nombre AS cliente,
+        U.nombre AS vendedor
+      FROM Ventas V
+      LEFT JOIN Clientes C ON V.cliente_id = C.id
+      JOIN Usuarios U ON V.usuario_id = U.id
+      WHERE V.id = @venta_id`,
+      [{ name: 'venta_id', type: sql.Int, value: venta_id }]
+    );
+
+    if (!cabecera.recordset?.length) {
+      return next(new AppError('Venta no encontrada', 404));
+    }
+
+    // 2. Obtener detalle de productos
+    const detalles = await executeQuery(
+      `SELECT 
+        DV.producto_id, 
+        P.nombre AS producto,
+        P.codigo,
+        DV.cantidad,
+        DV.precio_unitario,
+        DV.subtotal
       FROM DetallesVenta DV
       JOIN Productos P ON DV.producto_id = P.id
       WHERE DV.venta_id = @venta_id
-    `, { venta_id });
+      ORDER BY P.nombre`,
+      [{ name: 'venta_id', type: sql.Int, value: venta_id }]
+    );
 
-    // Verificar si se encontraron detalles
-    if (!detalles.recordset || detalles.recordset.length === 0) {
-      return res.status(404).json({ mensaje: 'No se encontraron detalles para esta venta' });
-    }
-
-    res.json({
+    res.status(200).json({
       success: true,
-      message: 'Detalles de venta obtenidos exitosamente',
-      data: detalles.recordset
+      data: {
+        cabecera: cabecera.recordset[0],
+        detalles: detalles.recordset,
+        total_productos: detalles.recordset.length
+      }
     });
+
   } catch (error) {
-    console.error('Error al obtener los detalles de la venta:', error);
-    res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
+    console.error('Error en getDetalleVenta:', error);
+    next(new AppError('Error al obtener el detalle de la venta', 500));
   }
 };
 
+// Función adicional: Top 10 productos más vendidos en un rango de fechas
+export const getTopProductos = async (req, res, next) => {
+  const { fecha_inicio, fecha_fin } = req.body;
 
-//Consideraciones:Ideal para usar en filtros del frontend tipo: “Mostrar ventas del 1 al 10 de abril”.
-//Se puede complementar después con totales por producto, top 10 más vendidos, etc.
-//tipo_pago se incluye para diferenciar entre efectivo, tarjeta, etc.
+  // Validaciones similares a getVentasPorFecha...
 
+  try {
+    const result = await executeQuery(
+      `SELECT TOP 10
+        P.id,
+        P.nombre,
+        P.codigo,
+        SUM(DV.cantidad) AS total_vendido,
+        SUM(DV.subtotal) AS total_ingresos
+      FROM DetallesVenta DV
+      JOIN Productos P ON DV.producto_id = P.id
+      JOIN Ventas V ON DV.venta_id = V.id
+      WHERE V.fecha_venta BETWEEN @fecha_inicio AND @fecha_fin
+      GROUP BY P.id, P.nombre, P.codigo
+      ORDER BY total_vendido DESC`,
+      [
+        { name: 'fecha_inicio', type: sql.Date, value: fecha_inicio },
+        { name: 'fecha_fin', type: sql.Date, value: fecha_fin }
+      ]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.recordset
+    });
+
+  } catch (error) {
+    next(new AppError('Error al obtener top productos', 500));
+  }
+};

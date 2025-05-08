@@ -1,10 +1,20 @@
-// src/routes/facturaRoutes.js
 import express from 'express';
-const router = express.Router();
-import * as facturaController from '../controllers/facturaController.js';
+import {
+  crearFactura,
+  listarFacturas,
+  obtenerFacturaPorId
+} from '../controllers/facturaController.js';
+import { validarFactura } from '../../middlewares/validacionFacturas.js';
 
-router.get('/', facturaController.obtenerFacturas);
-router.get('/:id', facturaController.obtenerFacturaPorId);
-router.post('/', facturaController.crearFactura);
+const router = express.Router();
+
+// GET /api/facturas
+router.get('/', listarFacturas);
+
+// GET /api/facturas/:id
+router.get('/:id', obtenerFacturaPorId);
+
+// POST /api/facturas
+router.post('/', validarFactura, crearFactura);
 
 export default router;

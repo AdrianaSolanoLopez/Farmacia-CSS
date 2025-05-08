@@ -1,9 +1,14 @@
-// src/routes/reportesRoutes.js
 import express from 'express';
 const router = express.Router();
-import * as reportesController from '../controllers/reportesController.js';
+import {
+  ventasPorFecha,
+  resumenVentasPorFecha
+} from '../controllers/reportesController.js';
 
-// Reporte general de ventas por fechas
-router.get('/ventas-por-fecha', reportesController.ventasPorFecha);
+// Reporte detallado de ventas por fechas
+router.get('/ventas', ventasPorFecha);
+
+// Reporte resumido de ventas por fechas
+router.get('/ventas/resumen', resumenVentasPorFecha);
 
 export default router;

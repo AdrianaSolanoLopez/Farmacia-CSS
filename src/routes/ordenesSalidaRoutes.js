@@ -1,12 +1,28 @@
-// src/routes/ordenesSalidaRoutes.js
 import express from 'express';
-const router = express.Router();
-import * as ordenesSalidaController from '../controllers/ordenesSalidaController.js';
+import {
+  registrarOrdenSalida,
+  obtenerOrdenesSalida,
+  obtenerOrdenSalidaPorId,
+  actualizarOrdenSalida,
+  eliminarOrdenSalida
+} from '../controllers/ordenesSalidaController.js';
+import { validarOrdenSalida } from '../../middlewares/validacionOrdenSalida.js';
 
-router.get('/', ordenesSalidaController.obtenerOrdenesSalida);
-//router.get('/:id', ordenesSalidaController.obtenerOrdenSalidaPorId);
-router.post('/', ordenesSalidaController.registrarOrdenSalida);
-//router.put('/:id', ordenesSalidaController.actualizarOrdenSalida);
-//router.delete('/:id', ordenesSalidaController.eliminarOrdenSalida);
+const router = express.Router();
+
+// GET /api/ordenes-salida
+router.get('/', obtenerOrdenesSalida);
+
+// GET /api/ordenes-salida/:id
+router.get('/:id', obtenerOrdenSalidaPorId);
+
+// POST /api/ordenes-salida
+router.post('/', validarOrdenSalida, registrarOrdenSalida);
+
+// PUT /api/ordenes-salida/:id
+router.put('/:id', actualizarOrdenSalida);
+
+// DELETE /api/ordenes-salida/:id
+router.delete('/:id', eliminarOrdenSalida);
 
 export default router;

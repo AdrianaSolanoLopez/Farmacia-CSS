@@ -1,11 +1,8 @@
-//recepcionController.js
-
-const sql = require('mssql');
-const AppError = require('../utils/AppError');
-const { executeStoredProcedure } = require('../database/db');
+import { executeQuery, sql } from '../config/db.js';
+import AppError from '../utils/AppError.js';
 
 // Función para crear el acta de recepción
-const createActa = async (req, res, next) => {
+export const createActa = async (req, res, next) => {
   const { fecha_recepcion, ciudad, Responsable, numero_factura, detalles } = req.body;
 
   // Validación de entrada
@@ -15,13 +12,21 @@ const createActa = async (req, res, next) => {
 
   try {
     // Ejecutar procedimiento para crear el acta
-    const result = await executeStoredProcedure('sp_GuardarActa', [
-      { name: 'fecha_recepcion', type: sql.DateTime, value: fecha_recepcion },
-      { name: 'ciudad', type: sql.NVarChar, value: ciudad },
-      { name: 'Responsable', type: sql.NVarChar, value: Responsable },
-      { name: 'numero_factura', type: sql.NVarChar, value: numero_factura },
-      { name: 'detalles', type: sql.NVarChar, value: detalles }
-    ]);
+    const result = await executeQuery(
+      `EXEC sp_GuardarActa 
+       @fecha_recepcion = @fecha, 
+       @ciudad = @ciudad, 
+       @Responsable = @responsable, 
+       @numero_factura = @factura, 
+       @detalles = @detalles`,
+      [
+        { name: 'fecha', type: sql.DateTime, value: fecha_recepcion },
+        { name: 'ciudad', type: sql.NVarChar, value: ciudad },
+        { name: 'responsable', type: sql.NVarChar, value: Responsable },
+        { name: 'factura', type: sql.NVarChar, value: numero_factura },
+        { name: 'detalles', type: sql.NVarChar, value: detalles }
+      ]
+    );
 
     if (!result || !result.recordset) {
       console.error('Error en el procedimiento sp_GuardarActa: Sin respuesta de la base de datos');
@@ -41,7 +46,7 @@ const createActa = async (req, res, next) => {
 };
 
 // Función para agregar productos al acta
-const addProductsToActa = async (req, res, next) => {
+export const addProductsToActa = async (req, res, next) => {
   const { acta_id, productos } = req.body;
 
   // Validación de entrada
@@ -51,18 +56,18 @@ const addProductsToActa = async (req, res, next) => {
 
   try {
     // Iniciar transacción
+    const pool = await getPool();
     const transaction = new sql.Transaction(pool);
     await transaction.begin();
 
     try {
       // Iterar sobre los productos y agregar al acta
       for (const item of productos) {
-        await transaction.request().execute('sp_AgregarProductoActa', [
-          { name: 'acta_id', type: sql.Int, value: acta_id },
-          { name: 'producto_id', type: sql.Int, value: item.producto_id },
-          { name: 'cantidad', type: sql.Int, value: item.cantidad },
-          { name: 'precio', type: sql.Float, value: item.precio }
-        ]);
+        await transaction.request().input('acta_id', sql.Int, acta_id)
+          .input('producto_id', sql.Int, item.producto_id)
+          .input('cantidad', sql.Int, item.cantidad)
+          .input('precio', sql.Float, item.precio)
+          .execute('sp_AgregarProductoActa');
       }
 
       // Confirmar transacción
@@ -84,7 +89,7 @@ const addProductsToActa = async (req, res, next) => {
 };
 
 // Función para buscar productos en la base de datos
-const searchProduct = async (req, res, next) => {
+export const searchProduct = async (req, res, next) => {
   const { busqueda } = req.query;
 
   // Validación de entrada
@@ -94,9 +99,10 @@ const searchProduct = async (req, res, next) => {
 
   try {
     // Ejecutar búsqueda
-    const result = await executeStoredProcedure('sp_BuscarProducto', [
-      { name: 'busqueda', type: sql.NVarChar, value: busqueda }
-    ]);
+    const result = await executeQuery(
+      'EXEC sp_BuscarProducto @busqueda = @searchTerm',
+      [{ name: 'searchTerm', type: sql.NVarChar, value: busqueda }]
+    );
 
     if (!result || !result.recordset) {
       return next(new AppError('No se encontraron productos', 404));
@@ -114,7 +120,7 @@ const searchProduct = async (req, res, next) => {
 };
 
 // Función para cargar el acta en el inventario
-const loadActaToInventory = async (req, res, next) => {
+export const loadActaToInventory = async (req, res, next) => {
   const { acta_id } = req.body;
 
   // Validación de entrada
@@ -124,18 +130,20 @@ const loadActaToInventory = async (req, res, next) => {
 
   try {
     // Verificar si el acta existe
-    const acta = await executeStoredProcedure('sp_GetActaById', [
-      { name: 'acta_id', type: sql.Int, value: acta_id }
-    ]);
+    const acta = await executeQuery(
+      'EXEC sp_GetActaById @acta_id = @id',
+      [{ name: 'id', type: sql.Int, value: acta_id }]
+    );
 
     if (!acta || !acta.recordset.length) {
       return next(new AppError('Acta no encontrada', 404));
     }
 
     // Ejecutar procedimiento para cargar productos en el inventario
-    const result = await executeStoredProcedure('sp_CargarActaInventario', [
-      { name: 'acta_id', type: sql.Int, value: acta_id }
-    ]);
+    const result = await executeQuery(
+      'EXEC sp_CargarActaInventario @acta_id = @id',
+      [{ name: 'id', type: sql.Int, value: acta_id }]
+    );
 
     // Responder con éxito
     res.status(200).json({
@@ -149,9 +157,59 @@ const loadActaToInventory = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  createActa,
-  addProductsToActa,
-  searchProduct,
-  loadActaToInventory
+// Funciones adicionales para las rutas
+export const obtenerRecepciones = async (req, res, next) => {
+  try {
+    const result = await executeQuery(
+      'EXEC sp_ObtenerTodasLasRecepciones'
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.recordset
+    });
+  } catch (error) {
+    next(new AppError('Error al obtener las recepciones', 500));
+  }
+};
+
+export const obtenerRecepcionPorId = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery(
+      'EXEC sp_ObtenerRecepcionPorId @id = @recepcionId',
+      [{ name: 'recepcionId', type: sql.Int, value: id }]
+    );
+
+    if (!result.recordset.length) {
+      return next(new AppError('Recepcion no encontrada', 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.recordset[0]
+    });
+  } catch (error) {
+    next(new AppError('Error al obtener la recepción', 500));
+  }
+};
+
+export const registrarRecepcion = async (req, res, next) => {
+  try {
+    // Primero crear el acta
+    const actaResponse = await createActa(req, res, next);
+
+    // Si hay productos, agregarlos
+    if (req.body.productos && req.body.productos.length > 0) {
+      req.body.acta_id = actaResponse.data.acta_id;
+      await addProductsToActa(req, res, next);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Recepción registrada completamente'
+    });
+  } catch (error) {
+    next(new AppError('Error al registrar la recepción completa', 500));
+  }
 };

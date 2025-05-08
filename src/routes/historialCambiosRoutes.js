@@ -1,9 +1,16 @@
-// src/routes/historialCambiosRoutes.js
 import express from 'express';
-const router = express.Router();
-import * as historialCambiosController from '../controllers/historialCambiosController.js';
+import {
+  obtenerHistorial,
+  registrarCambio
+} from '../controllers/historialCambiosController.js';
+import { validarRegistroCambio } from '../../middlewares/validacionHistorial.js';
 
-router.get('/', historialCambiosController.obtenerHistorial);
-router.post('/', historialCambiosController.registrarCambio);
+const router = express.Router();
+
+// GET /api/historial-cambios
+router.get('/', obtenerHistorial);
+
+// POST /api/historial-cambios
+router.post('/', validarRegistroCambio, registrarCambio);
 
 export default router;

@@ -1,56 +1,108 @@
-//2. Controlador: Reportes de Ventas por Fecha (reportesController.js)
+import { executeQuery, sql } from '../config/db.js';
+import AppError from '../utils/AppError.js';
 
-const db = require('../config/db');
+// Obtener ventas por fecha
+export const ventasPorFecha = async (req, res, next) => {
+  const { fechaInicio, fechaFin } = req.query;
 
-const reportesController = {
-  // Obtener ventas por fecha
-  ventasPorFecha: async (req, res, next) => {
-    const { fechaInicio, fechaFin } = req.query;
+  // Validación de fechas
+  if (!fechaInicio || !fechaFin) {
+    return next(new AppError('Las fechas de inicio y fin son requeridas', 400));
+  }
 
-    // Validación de fechas
-    if (!fechaInicio || !fechaFin) {
-      return res.status(400).json({ mensaje: 'Las fechas de inicio y fin son requeridas' });
+  // Validar formato de fechas
+  const isValidDate = (dateString) => {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateString)) return false;
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date);
+  };
+
+  if (!isValidDate(fechaInicio) || !isValidDate(fechaFin)) {
+    return next(new AppError('Formato de fecha inválido. Use YYYY-MM-DD', 400));
+  }
+
+  try {
+    // Realizar la consulta con parámetros
+    const result = await executeQuery(
+      `SELECT 
+        f.id, 
+        FORMAT(f.fecha, 'yyyy-MM-dd') AS fecha,
+        c.nombre AS cliente, 
+        p.nombre AS producto, 
+        df.cantidad, 
+        df.precio_venta,
+        (df.cantidad * df.precio_venta) AS total
+      FROM Facturas f
+      INNER JOIN Clientes c ON f.cliente_id = c.id
+      INNER JOIN DetalleFactura df ON f.id = df.factura_id
+      INNER JOIN Productos p ON df.producto_id = p.id
+      WHERE f.fecha BETWEEN @fechaInicio AND @fechaFin
+      ORDER BY f.fecha DESC`,
+      [
+        { name: 'fechaInicio', type: sql.Date, value: fechaInicio },
+        { name: 'fechaFin', type: sql.Date, value: fechaFin }
+      ]
+    );
+
+    // Verificar si se encontraron ventas
+    if (!result.recordset || result.recordset.length === 0) {
+      return next(new AppError('No se encontraron ventas en el rango de fechas especificado', 404));
     }
 
-    // Asegurarse de que las fechas sean válidas
-    const isValidDate = (date) => !isNaN(Date.parse(date));
-    if (!isValidDate(fechaInicio) || !isValidDate(fechaFin)) {
-      return res.status(400).json({ mensaje: 'Fechas inválidas' });
-    }
+    // Calcular total general
+    const totalGeneral = result.recordset.reduce((sum, venta) => sum + venta.total, 0);
 
-    try {
-      // Realizar la consulta con parámetros
-      const ventas = await db.query(
-        `SELECT f.id, f.fecha, c.nombre AS cliente, p.nombre_producto, df.cantidad, df.precio_venta
-         FROM Facturas f
-         INNER JOIN Clientes c ON f.cliente_id = c.id
-         INNER JOIN DetalleFactura df ON f.id = df.factura_id
-         INNER JOIN Productos p ON df.producto_id = p.id
-         WHERE f.fecha BETWEEN @fechaInicio AND @fechaFin
-         ORDER BY f.fecha DESC`,
-        { fechaInicio, fechaFin }
-      );
-
-      // Verificar si se encontraron ventas
-      if (!ventas.recordset || ventas.recordset.length === 0) {
-        return res.status(404).json({ mensaje: 'No se encontraron ventas en el rango de fechas especificado' });
+    // Responder con las ventas
+    res.status(200).json({
+      success: true,
+      message: 'Ventas obtenidas exitosamente',
+      data: {
+        ventas: result.recordset,
+        totalVentas: result.recordset.length,
+        totalGeneral: parseFloat(totalGeneral.toFixed(2))
+      },
+      meta: {
+        fechaInicio,
+        fechaFin
       }
+    });
 
-      // Responder con las ventas
-      res.json({
-        success: true,
-        message: 'Ventas obtenidas exitosamente',
-        data: ventas.recordset
-      });
-    } catch (error) {
-      console.error('Error al obtener reportes de ventas por fecha:', error);
-      // Manejar errores más específicos
-      if (error.code === 'ECONNREFUSED') {
-        return next(new AppError('Error de conexión con la base de datos', 500));
-      }
-      res.status(500).json({ mensaje: 'Error del servidor', error: error.message });
-    }
+  } catch (error) {
+    console.error('Error en ventasPorFecha:', error);
+    next(error instanceof AppError ? error : new AppError('Error al obtener reporte de ventas', 500));
   }
 };
 
-module.exports = reportesController;
+// Puedes agregar más funciones de reportes aquí
+export const resumenVentasPorFecha = async (req, res, next) => {
+  const { fechaInicio, fechaFin } = req.query;
+
+  // Validaciones similares a ventasPorFecha...
+
+  try {
+    const result = await executeQuery(
+      `SELECT 
+        FORMAT(f.fecha, 'yyyy-MM-dd') AS fecha,
+        COUNT(f.id) AS total_facturas,
+        SUM(df.cantidad * df.precio_venta) AS total_ventas
+      FROM Facturas f
+      INNER JOIN DetalleFactura df ON f.id = df.factura_id
+      WHERE f.fecha BETWEEN @fechaInicio AND @fechaFin
+      GROUP BY f.fecha
+      ORDER BY f.fecha`,
+      [
+        { name: 'fechaInicio', type: sql.Date, value: fechaInicio },
+        { name: 'fechaFin', type: sql.Date, value: fechaFin }
+      ]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result.recordset
+    });
+
+  } catch (error) {
+    next(new AppError('Error al obtener resumen de ventas', 500));
+  }
+};

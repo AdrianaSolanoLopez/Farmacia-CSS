@@ -1,19 +1,30 @@
-// src/routes/productosRoutes.js
 import express from 'express';
+import {
+  createProduct,
+  getAllProducts,
+  getProductById,
+  updateProduct,
+  deleteProduct,
+  createLote,
+  getLotesByProductId,
+  getLotesPorVencer
+} from '../controllers/productoController.js';
+import { validarProducto, validarLote } from '../../middlewares/validacionProductos.js';
+
 const router = express.Router();
-import * as productoController from '../controllers/productoController.js';
 
-router.get('/', productoController.getAllProducts);
-router.get('/:id', productoController.getProductById);
-router.post('/', productoController.createProduct);
-router.put('/:id', productoController.updateProduct);
-router.delete('/:id', productoController.deleteProduct);
+// Productos
+router.get('/', getAllProducts);
+router.get('/:id', getProductById);
+router.post('/', validarProducto, createProduct);
+router.put('/:id', validarProducto, updateProduct);
+router.delete('/:id', deleteProduct);
 
-// Lotes relacionados
-//router.get('/:id/lotes', productoController.obtenerLotesPorProducto);
-//router.post('/:id/lotes', productoController.agregarLoteAProducto);
+// Lotes
+router.get('/:producto_id/lotes', getLotesByProductId);
+router.post('/:producto_id/lotes', validarLote, createLote);
 
-// Productos por vencer
-//router.get('/alertas/vencimientos', productoController.productosProximosAVencer);
+// Alertas
+router.get('/alertas/vencimientos', getLotesPorVencer);
 
 export default router;

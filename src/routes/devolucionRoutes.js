@@ -1,10 +1,20 @@
-// src/routes/devolucionRoutes.js
 import express from 'express';
-const router = express.Router();
-import * as devolucionController from '../controllers/devolucionController.js';
+import {
+  registrarDevolucion,
+  getHistorialDevoluciones,
+  obtenerDevolucionPorId
+} from '../controllers/devolucionController.js';
+import { validarDevolucion } from '../../middlewares/validacionDevoluciones.js';
 
-router.get('/', devolucionController.obtenerDevoluciones);
-router.get('/:id', devolucionController.obtenerDevolucionPorId);
-router.post('/', devolucionController.registrarDevolucion);
+const router = express.Router();
+
+// GET /api/devoluciones
+router.get('/', getHistorialDevoluciones);
+
+// GET /api/devoluciones/:id
+router.get('/:id', obtenerDevolucionPorId);
+
+// POST /api/devoluciones
+router.post('/', validarDevolucion, registrarDevolucion);
 
 export default router;

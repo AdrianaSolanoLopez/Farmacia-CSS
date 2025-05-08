@@ -1,97 +1,123 @@
-// src/controllers/AutenticacionController.js
-
-import sql from 'mssql';
-import pool from '../config/db.js';
+import { executeQuery, sql } from '../config/db.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-const AutenticacionController = {
-  // Registro de nuevo usuario
-  register: async (req, res) => {
-    const { nombre, correo, contraseña, rol } = req.body;
+export const register = async (req, res) => {
+  const { nombre, correo, contraseña, rol } = req.body;
 
-    if (!nombre || !correo || !contraseña || !rol) {
-      return res.status(400).json({ message: 'Todos los campos son obligatorios.' });
-    }
+  // Validación mejorada
+  if (!nombre || !correo || !contraseña || !rol) {
+    return res.status(400).json({
+      success: false,
+      message: 'Todos los campos son obligatorios',
+      requiredFields: ['nombre', 'correo', 'contraseña', 'rol']
+    });
+  }
 
-    try {
-      const poolRequest = pool.request();
+  try {
+    // Verificar correo existente
+    const { recordset } = await executeQuery(
+      'SELECT id FROM Usuarios WHERE correo = @correo',
+      [{ name: 'correo', value: correo, type: sql.NVarChar(100) }]
+    );
 
-      // Validar si el correo ya existe
-      const { recordset: usuariosExistentes } = await poolRequest
-        .input('correo', sql.NVarChar, correo)
-        .query('SELECT id FROM Usuarios WHERE correo = @correo');
-
-      if (usuariosExistentes.length > 0) {
-        return res.status(400).json({ message: 'El correo ya está registrado.' });
-      }
-
-      // Hashear contraseña
-      const hashedPassword = await bcrypt.hash(contraseña, 10);
-
-      // Insertar nuevo usuario
-      await pool.request()
-        .input('nombre', sql.NVarChar, nombre)
-        .input('correo', sql.NVarChar, correo)
-        .input('contraseña', sql.NVarChar, hashedPassword)
-        .input('rol', sql.NVarChar, rol)
-        .query(`
-          INSERT INTO Usuarios (nombre, correo, contraseña, rol) 
-          VALUES (@nombre, @correo, @contraseña, @rol)
-        `);
-
-      res.status(201).json({ message: 'Usuario registrado con éxito.' });
-    } catch (error) {
-      console.error('Error en registro:', error);
-      res.status(500).json({ message: 'Error al registrar el usuario.' });
-    }
-  },
-
-  // Inicio de sesión
-  login: async (req, res) => {
-    const { correo, contraseña } = req.body;
-
-    if (!correo || !contraseña) {
-      return res.status(400).json({ message: 'Correo y contraseña son obligatorios.' });
-    }
-
-    try {
-      const { recordset } = await pool.request()
-        .input('correo', sql.NVarChar, correo)
-        .query('SELECT id, nombre, correo, contraseña, rol FROM Usuarios WHERE correo = @correo');
-
-      if (recordset.length === 0) {
-        return res.status(401).json({ message: 'Correo o contraseña incorrectos.' });
-      }
-
-      const user = recordset[0];
-
-      const contraseñaValida = await bcrypt.compare(contraseña, user.contraseña);
-      if (!contraseñaValida) {
-        return res.status(401).json({ message: 'Correo o contraseña incorrectos.' });
-      }
-
-      const token = jwt.sign(
-        { id: user.id, rol: user.rol },
-        process.env.JWT_SECRET || 'secret',
-        { expiresIn: '1h' }
-      );
-
-      res.json({
-        message: 'Inicio de sesión exitoso.',
-        token,
-        usuario: {
-          id: user.id,
-          nombre: user.nombre,
-          correo: user.correo,
-          rol: user.rol
-        }
+    if (recordset.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'El correo ya está registrado'
       });
-    } catch (error) {
-      console.error('Error en login:', error);
-      res.status(500).json({ message: 'Error al iniciar sesión.' });
     }
+
+    // Hashear contraseña
+    const hashedPassword = await bcrypt.hash(contraseña, 10);
+
+    // Insertar usuario
+    await executeQuery(
+      `INSERT INTO Usuarios (nombre, correo, contraseña, rol) 
+       VALUES (@nombre, @correo, @contraseña, @rol)`,
+      [
+        { name: 'nombre', value: nombre, type: sql.NVarChar(100) },
+        { name: 'correo', value: correo, type: sql.NVarChar(100) },
+        { name: 'contraseña', value: hashedPassword, type: sql.NVarChar(255) },
+        { name: 'rol', value: rol, type: sql.NVarChar(50) }
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuario registrado con éxito'
+    });
+  } catch (error) {
+    console.error('Error en registro:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al registrar usuario',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };
 
-export default AutenticacionController;
+export const login = async (req, res) => {
+  const { correo, contraseña } = req.body;
+
+  // Validación mejorada
+  if (!correo || !contraseña) {
+    return res.status(400).json({
+      success: false,
+      message: 'Correo y contraseña son obligatorios'
+    });
+  }
+
+  try {
+    // Buscar usuario
+    const { recordset } = await executeQuery(
+      `SELECT id, nombre, correo, contraseña, rol 
+       FROM Usuarios WHERE correo = @correo`,
+      [{ name: 'correo', value: correo, type: sql.NVarChar(100) }]
+    );
+
+    if (recordset.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
+      });
+    }
+
+    const user = recordset[0];
+    const contraseñaValida = await bcrypt.compare(contraseña, user.contraseña);
+
+    if (!contraseñaValida) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
+      });
+    }
+
+    // Generar token JWT
+    const token = jwt.sign(
+      {
+        id: user.id,
+        rol: user.rol,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hora
+      },
+      process.env.JWT_SECRET || 'secret_default'
+    );
+
+    // Eliminar contraseña del objeto de respuesta
+    delete user.contraseña;
+
+    res.json({
+      success: true,
+      message: 'Autenticación exitosa',
+      token,
+      usuario: user
+    });
+  } catch (error) {
+    console.error('Error en login:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error en autenticación',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};

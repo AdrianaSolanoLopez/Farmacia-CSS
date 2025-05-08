@@ -1,12 +1,13 @@
-// src/routes/authRoutes.js
 import express from 'express';
+import { login, register } from '../controllers/AutenticacionController.js';
+import { validateLogin, validateRegister } from '../../middlewares/authValidation.js';
+
 const router = express.Router();
-import authController from '../controllers/AutenticacionController.js';
 
-// Login
-router.post('/login', authController.login);
+// POST /api/auth/login
+router.post('/login', validateLogin, login);
 
-// Registrar usuario (opcional, si se maneja desde backend)
-router.post('/register', authController.register);
+// POST /api/auth/register
+router.post('/register', validateRegister, register);
 
 export default router;

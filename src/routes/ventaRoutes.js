@@ -1,12 +1,26 @@
-// src/routes/ventaRoutes.js
 import express from 'express';
 const router = express.Router();
-import * as ventaController from '../controllers/ventaController.js';
+import {
+  registrarVenta,
+  getHistorialVentas,
+  getDetalleVenta,
+  getVentasPorFecha,
+  eliminarVenta
+} from '../controllers/ventaController.js';
 
-router.get('/', ventaController.getHistorialVentas);
-router.get('/:id', ventaController.getDetalleVenta);
-router.post('/', ventaController.registrarVenta);
-//router.get('/fecha', ventaController.getVentasPorFecha);
-//router.delete('/:id', ventaController.eliminarVenta);
+// Registrar nueva venta
+router.post('/', registrarVenta);
+
+// Obtener historial de ventas (con paginación)
+router.get('/', getHistorialVentas);
+
+// Obtener detalle de una venta específica
+router.get('/:id', getDetalleVenta);
+
+// Obtener ventas por rango de fechas
+router.get('/reporte/por-fecha', getVentasPorFecha);
+
+// Eliminar una venta (revertir stock)
+router.delete('/:id', eliminarVenta);
 
 export default router;
