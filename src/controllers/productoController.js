@@ -3,42 +3,44 @@ import moment from 'moment';
 
 export const createProduct = async (req, res) => {
   const {
-    nombre,
-    descripcion,
     codigo_barras,
-    unidad_medida,
-    precio_compra,
-    precio_venta,
-    stock_minimo,
+    nombre_producto,
+    concentracion,
+    forma_farmaceutica,
+    presentacion,
+    laboratorio,
+    registro_sanitario,
+    temperatura_id,
     proveedor_id,
-    categoria_id
+    categoria
   } = req.body;
 
-  // Validaciones
-  if (!nombre || !unidad_medida || !precio_venta || precio_venta <= 0) {
+  // Validaciones mínimas
+  if (!nombre_producto || !presentacion) {
     return res.status(400).json({
       success: false,
-      message: 'Datos incompletos o inválidos',
-      requiredFields: ['nombre', 'unidad_medida', 'precio_venta']
+      message: 'Datos incompletos',
+      requiredFields: ['nombre_producto', 'presentacion']
     });
   }
 
-  try {
+   try {
     const result = await executeQuery(
       `INSERT INTO Productos 
-       (nombre, descripcion, codigo_barras, unidad_medida, precio_compra, precio_venta, stock_minimo, proveedor_id, categoria_id, estado)
-       OUTPUT INSERTED.id
-       VALUES (@nombre, @descripcion, @codigo_barras, @unidad_medida, @precio_compra, @precio_venta, @stock_minimo, @proveedor_id, @categoria_id, 1)`,
+       (codigo_barras, nombre_producto, concentracion, forma_farmaceutica, presentacion, laboratorio, registro_sanitario, temperatura_id, proveedor_id, categoria, estado)
+       OUTPUT INSERTED.producto_id
+       VALUES (@codigo_barras, @nombre_producto, @concentracion, @forma_farmaceutica, @presentacion, @laboratorio, @registro_sanitario, @temperatura_id, @proveedor_id, @categoria, 1)`,
       [
-        { name: 'nombre', value: nombre, type: sql.NVarChar(100) },
-        { name: 'descripcion', value: descripcion || null, type: sql.NVarChar(500) },
         { name: 'codigo_barras', value: codigo_barras || null, type: sql.NVarChar(50) },
-        { name: 'unidad_medida', value: unidad_medida, type: sql.NVarChar(20) },
-        { name: 'precio_compra', value: precio_compra || 0, type: sql.Decimal(10, 2) },
-        { name: 'precio_venta', value: precio_venta, type: sql.Decimal(10, 2) },
-        { name: 'stock_minimo', value: stock_minimo || 0, type: sql.Int },
+        { name: 'nombre_producto', value: nombre_producto, type: sql.NVarChar(50) },
+        { name: 'concentracion', value: concentracion || null, type: sql.NVarChar(50) },
+        { name: 'forma_farmaceutica', value: forma_farmaceutica || null, type: sql.NVarChar(50) },
+        { name: 'presentacion', value: presentacion, type: sql.NVarChar(50) },
+        { name: 'laboratorio', value: laboratorio || null, type: sql.NVarChar(50) },
+        { name: 'registro_sanitario', value: registro_sanitario || null, type: sql.NVarChar(50) },
+        { name: 'temperatura_id', value: temperatura_id || null, type: sql.Int },
         { name: 'proveedor_id', value: proveedor_id || null, type: sql.Int },
-        { name: 'categoria_id', value: categoria_id || null, type: sql.Int }
+        { name: 'categoria', value: categoria || null, type: sql.NVarChar(50) }
       ]
     );
 
@@ -46,9 +48,8 @@ export const createProduct = async (req, res) => {
       success: true,
       message: 'Producto creado correctamente',
       data: {
-        id: result.recordset[0].id,
-        nombre,
-        codigo_barras: codigo_barras || null
+        producto_id: result.recordset[0].producto_id,
+        nombre_producto
       }
     });
   } catch (error) {
