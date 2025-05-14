@@ -84,30 +84,30 @@ export const getAllProducts = async (req, res) => {
     }
 
     const result = await executeQuery(`
-      SELECT 
-        p.id,
-        p.nombre,
-        p.descripcion,
-        p.codigo_barras,
-        p.unidad_medida,
-        p.precio_compra,
-        p.precio_venta,
-        p.stock_minimo,
-        (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) AS stock_actual,
-        pr.nombre AS proveedor,
-        c.nombre AS categoria,
-        CASE 
-          WHEN (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) <= p.stock_minimo THEN 'CRITICO'
-          WHEN (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) <= p.stock_minimo * 1.5 THEN 'ALERTA'
-          ELSE 'NORMAL'
-        END AS estado_stock
-      FROM Productos p
-      LEFT JOIN Proveedores pr ON p.proveedor_id = pr.id
-      LEFT JOIN Categorias c ON p.categoria_id = c.id
-      WHERE ${whereConditions.join(' AND ')}
-      ORDER BY p.nombre
-    `, params);
+  SELECT 
+    p.producto_id,
+    p.codigo_barras,
+    p.nombre_producto,
+    p.concentracion,
+    p.forma_farmaceutica,
+    p.presentacion,
+    p.laboratorio,
+    p.registro_sanitario,
+    p.stock,
+    p.categoria,
+    pr.nombre_proveedor AS proveedor,
+    CASE 
+      WHEN p.stock <= 10 THEN 'CRITICO'
+      WHEN p.stock <= 20 THEN 'ALERTA'
+      ELSE 'NORMAL'
+    END AS estado_stock
+  FROM Productos p
+  LEFT JOIN Proveedores pr ON p.proveedor_id = pr.proveedor_id
+  WHERE p.estado = 1
+  ORDER BY p.nombre_producto
+`, []);
 
+    
     res.json({
       success: true,
       data: result.recordset,
