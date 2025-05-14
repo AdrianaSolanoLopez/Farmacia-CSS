@@ -61,29 +61,33 @@ export const createProduct = async (req, res) => {
     });
   }
 };
-
+//-----------------
 export const getAllProducts = async (req, res) => {
   try {
     const { categoria_id, proveedor_id, con_stock } = req.query;
 
     const whereConditions = ['p.estado = 1'];
-    const params = [];
+const params = [];
 
-    if (categoria_id) {
-      whereConditions.push('p.categoria_id = @categoria_id');
-      params.push({ name: 'categoria_id', value: categoria_id, type: sql.Int });
-    }
+if (categoria_id) {
+  whereConditions.push('p.categoria_id = @categoria_id');
+  params.push({ name: 'categoria_id', value: categoria_id, type: sql.Int });
+}
+if (proveedor_id) {
+  whereConditions.push('p.proveedor_id = @proveedor_id');
+  params.push({ name: 'proveedor_id', value: proveedor_id, type: sql.Int });
+}
+if (con_stock === 'true') {
+  whereConditions.push(`EXISTS (
+    SELECT 1 FROM Lotes l 
+    WHERE l.producto_id = p.producto_id 
+    AND l.cantidad_disponible > 0
+  )`);
+}
 
-    if (proveedor_id) {
-      whereConditions.push('p.proveedor_id = @proveedor_id');
-      params.push({ name: 'proveedor_id', value: proveedor_id, type: sql.Int });
-    }
+const whereSQL = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
 
-    if (con_stock === 'true') {
-      whereConditions.push('(SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) > 0');
-    }
-
-    const result = await executeQuery(`
+const result = await executeQuery(`
   SELECT 
     p.producto_id,
     p.codigo_barras,
@@ -93,20 +97,18 @@ export const getAllProducts = async (req, res) => {
     p.presentacion,
     p.laboratorio,
     p.registro_sanitario,
-    p.stock,
-    p.categoria,
     pr.nombre_proveedor AS proveedor,
+    (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.producto_id) AS stock_actual,
     CASE 
-      WHEN p.stock <= 10 THEN 'CRITICO'
-      WHEN p.stock <= 20 THEN 'ALERTA'
+      WHEN (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.producto_id) <= 10 THEN 'CRITICO'
+      WHEN (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.producto_id) <= 20 THEN 'ALERTA'
       ELSE 'NORMAL'
     END AS estado_stock
   FROM Productos p
   LEFT JOIN Proveedores pr ON p.proveedor_id = pr.proveedor_id
-  WHERE p.estado = 1
+  ${whereSQL}
   ORDER BY p.nombre_producto
-`, []);
-
+`, params);
     
     res.json({
       success: true,
@@ -128,7 +130,7 @@ export const getAllProducts = async (req, res) => {
     });
   }
 };
-
+//---------------------------------------------------
 export const getProductById = async (req, res) => {
   const { id } = req.params;
 
@@ -137,12 +139,13 @@ export const getProductById = async (req, res) => {
       SELECT 
         p.*,
         pr.nombre AS proveedor,
-        c.nombre AS categoria,
-        (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE l.producto_id = p.id) AS stock_actual
+        p.categoria AS categoria,
+
+        (SELECT SUM(l.cantidad_disponible) FROM Lotes l WHERE p.producto_id = @id) AS stock_actual
       FROM Productos p
       LEFT JOIN Proveedores pr ON p.proveedor_id = pr.id
       LEFT JOIN Categorias c ON p.categoria_id = c.id
-      WHERE p.id = @id
+      WHERE p.producto_id = @id
     `, [{ name: 'id', value: id, type: sql.Int }]);
 
     if (result.recordset.length === 0) {
@@ -283,23 +286,24 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
+import { v4 as uuidv4 } from 'uuid';
 export const createLote = async (req, res) => {
   const { producto_id } = req.params;
-  const { numero_lote, fecha_vencimiento, cantidad } = req.body;
+  const { fecha_vencimiento, cantidad, precio_compra, observaciones } = req.body;
 
   // Validaciones
   if (!numero_lote || !fecha_vencimiento || !cantidad || cantidad <= 0) {
     return res.status(400).json({
       success: false,
       message: 'Datos incompletos o inválidos',
-      requiredFields: ['numero_lote', 'fecha_vencimiento', 'cantidad']
+      requiredFields: ['fecha_vencimiento', 'cantidad', 'precio_compra']
     });
   }
 
   try {
     // Verificar que el producto existe
     const producto = await executeQuery(
-      'SELECT id FROM Productos WHERE id = @producto_id AND estado = 1',
+      'SELECT producto_id FROM Productos WHERE producto_id = @producto_id AND estado = 1',
       [{ name: 'producto_id', value: producto_id, type: sql.Int }]
     );
 
@@ -311,16 +315,21 @@ export const createLote = async (req, res) => {
     }
 
     // Insertar lote
-    const result = await executeQuery(
+    const lote_id = uuidv4();
+    
+   const result = await executeQuery(
       `INSERT INTO Lotes 
-       (producto_id, numero_lote, fecha_vencimiento, cantidad_disponible)
-       OUTPUT INSERTED.id
-       VALUES (@producto_id, @numero_lote, @fecha_vencimiento, @cantidad)`,
+       (lote_id, producto_id, fecha_vencimiento, cantidad_disponible, precio_compra, observaciones)
+       OUTPUT INSERTED.lote_id
+       VALUES (@lote_id, @producto_id, @fecha_vencimiento, @cantidad, @precio_compra, @observaciones)`,
       [
+        { name: 'lote_id', value: lote_id, type: sql.NVarChar(50) },
         { name: 'producto_id', value: producto_id, type: sql.Int },
-        { name: 'numero_lote', value: numero_lote, type: sql.NVarChar(50) },
+        //{ name: 'numero_lote', value: numero_lote, type: sql.NVarChar(50) },
         { name: 'fecha_vencimiento', value: new Date(fecha_vencimiento), type: sql.Date },
-        { name: 'cantidad', value: cantidad, type: sql.Decimal(10, 2) }
+        { name: 'cantidad', value: cantidad, type: sql.Decimal(10, 2) },
+        { name: 'precio_compra', value: precio_compra, type: sql.Decimal(10, 2) },
+        { name: 'observaciones', value: observaciones || null, type: sql.NVarChar(sql.MAX) }
       ]
     );
 
@@ -328,9 +337,9 @@ export const createLote = async (req, res) => {
       success: true,
       message: 'Lote creado correctamente',
       data: {
-        id: result.recordset[0].id,
+        lote_id: result.recordset[0].lote_id,
         producto_id,
-        numero_lote
+        //numero_lote
       }
     });
   } catch (error) {
@@ -342,14 +351,14 @@ export const createLote = async (req, res) => {
     });
   }
 };
-
+//________________________________________
 export const getLotesByProductId = async (req, res) => {
   const { producto_id } = req.params;
 
   try {
     const result = await executeQuery(`
       SELECT 
-        id,
+        lote_id,
         numero_lote,
         FORMAT(fecha_vencimiento, 'yyyy-MM-dd') AS fecha_vencimiento,
         cantidad_disponible,
